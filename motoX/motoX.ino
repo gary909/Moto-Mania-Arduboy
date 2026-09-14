@@ -38,6 +38,11 @@ constexpr float DRAG = 0.985f;
 constexpr float BASE_ACCEL = 0.15f;
 constexpr float NITRO_BOOST = 0.60f;
 constexpr float AIR_PITCH_SPEED = 0.4f;
+constexpr int8_t BIKE_Y_OFFSET = 4; // Height offset above ground line for visual clarity
+
+// 16-step directional offset vectors for wireframe bike rendering (6-pixel radius)
+const int8_t PROGMEM CHASSIS_DX[16] = { 6,  5,  4,  2,  0, -2, -4, -5, -6, -5, -4, -2,  0,  2,  4,  5 };
+const int8_t PROGMEM CHASSIS_DY[16] = { 0,  2,  4,  5,  6,  5,  4,  2,  0, -2, -4, -5, -6, -5, -4, -2 };
 
 // Global Game Objects
 Bike playerBike;
@@ -140,6 +145,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             float upwardVelocity = -bike.vx * groundSlopeAtX;
             if (groundSlopeAtX > 0.3f || upwardVelocity < -0.8f) {
                 bike.vy = upwardVelocity;
+                bike.angularVel = 0.0f; // Reset angular velocity so takeoff pitch holds stable until player inputs pitch
                 bike.state = RiderState::Airborne;
             }
             break;
@@ -212,6 +218,20 @@ void drawTerrain(float cameraX) {
     }
 }
 
+void drawBikeWireframe(int16_t screenX, int16_t screenY, uint8_t angle) {
+    int8_t dx = (int8_t)pgm_read_byte(&CHASSIS_DX[angle % 16]);
+    int8_t dy = (int8_t)pgm_read_byte(&CHASSIS_DY[angle % 16]);
+
+    // Lift bike center slightly above screenY so chassis doesn't clip into terrain line
+    int16_t renderY = screenY - BIKE_Y_OFFSET;
+
+    // Main bike frame line
+    arduboy.drawLine(screenX - dx, renderY - dy, screenX + dx, renderY + dy, WHITE);
+    
+    // Front wheel dot to show direction/pitch clearly
+    arduboy.fillCircle(screenX + dx, renderY + dy, 1, WHITE);
+}
+
 // -------------------------------------------------------------
 // 7. ARDUINO SETUP & LOOP
 // -------------------------------------------------------------
@@ -237,7 +257,9 @@ void loop() {
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
     int16_t bikeScreenY = (int16_t)playerBike.y;
-    arduboy.fillRect(bikeScreenX - 4, bikeScreenY - 6, 8, 6, WHITE);
+    
+    // Render wireframe chassis line with front-wheel directional dot
+    drawBikeWireframe(bikeScreenX, bikeScreenY, playerBike.angle);
 
     arduboy.setCursor(0, 0);
     arduboy.print(F("Spd:")); arduboy.print(playerBike.vx, 1);
