@@ -113,6 +113,9 @@ float getGroundSlope(float worldX) {
 void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
     switch (bike.state) {
         
+        // -------------------------------------------------------------
+        // 1. GROUNDED STATE
+        // -------------------------------------------------------------
         case RiderState::Grounded: {
             bike.y = groundHeightAtX;
             bike.angle = (uint8_t)(8 + (groundSlopeAtX * 4.0f)) % 16;
@@ -133,13 +136,18 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.x = 0;
             }
 
-            if (bike.y < groundHeightAtX - 2.0f) {
-                bike.vy = -bike.vx * groundSlopeAtX;
+            // Dynamic Takeoff Check: launch off sharp crests or up slopes at high speed
+            float upwardVelocity = -bike.vx * groundSlopeAtX;
+            if (groundSlopeAtX > 0.3f || upwardVelocity < -0.8f) {
+                bike.vy = upwardVelocity;
                 bike.state = RiderState::Airborne;
             }
             break;
         }
 
+        // -------------------------------------------------------------
+        // 2. AIRBORNE STATE
+        // -------------------------------------------------------------
         case RiderState::Airborne: {
             if (arduboy.pressed(LEFT_BUTTON)) {
                 bike.angularVel -= AIR_PITCH_SPEED;
@@ -176,6 +184,9 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             break;
         }
 
+        // -------------------------------------------------------------
+        // 3. CRASHING STATE
+        // -------------------------------------------------------------
         case RiderState::Crashing: {
             if (bike.crashTimer > 0) {
                 bike.crashTimer--;
