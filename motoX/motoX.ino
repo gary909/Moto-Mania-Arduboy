@@ -37,7 +37,7 @@ constexpr float GRAVITY = 0.25f;
 constexpr float DRAG = 0.985f;
 constexpr float BASE_ACCEL = 0.15f;
 constexpr float NITRO_BOOST = 0.60f;
-constexpr float AIR_PITCH_SPEED = 0.4f;
+constexpr float AIR_PITCH_SPEED = 0.20f; // Moderated pitch speed for responsive yet controllable air rotation
 constexpr int8_t BIKE_Y_OFFSET = 4; // Height offset above ground line for visual clarity
 
 // 16-step directional offset vectors for wireframe bike rendering (6-pixel radius)
@@ -228,8 +228,8 @@ void drawBikeWireframe(int16_t screenX, int16_t screenY, uint8_t angle) {
     // Main bike frame line
     arduboy.drawLine(screenX - dx, renderY - dy, screenX + dx, renderY + dy, WHITE);
     
-    // Front wheel dot to show direction/pitch clearly
-    arduboy.fillCircle(screenX + dx, renderY + dy, 1, WHITE);
+    // Front wheel dot to show direction/pitch clearly (inverted dx/dy offsets to point forward)
+    arduboy.fillCircle(screenX - dx, renderY - dy, 1, WHITE);
 }
 
 // -------------------------------------------------------------
