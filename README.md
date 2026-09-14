@@ -1,7 +1,8 @@
 "# Moto-Mania-Arduboy" 
 
 V2.1: Bike goes airborne and stays in takeoff direction until user input
-V2: Bike goes airborne
+
+V2: Bike goes airborne. Changed icon to arrow.
 
 V1: Bike responds to track elements
 
