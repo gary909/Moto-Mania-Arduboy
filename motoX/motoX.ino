@@ -22,6 +22,7 @@ struct Bike {
 
     uint8_t angle = 0;       // 0 to 15 mapped to rotated sprite angles
     float angularVel = 0.0f; // Mid-air rotation speed
+    float wheelieAngle = 0.0f; // Smooth grounded wheelie pitch offset
 
     uint8_t nitros = 3;
     bool nitroActive = false;
@@ -38,6 +39,9 @@ constexpr float DRAG = 0.985f;
 constexpr float BASE_ACCEL = 0.15f;
 constexpr float NITRO_BOOST = 0.60f;
 constexpr float AIR_PITCH_SPEED = 0.20f; // Moderated pitch speed for responsive yet controllable air rotation
+constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
+constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
+constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
 constexpr int8_t BIKE_Y_OFFSET = 4; // Height offset above ground line for visual clarity
 
 // 16-step directional offset vectors for wireframe bike rendering (6-pixel radius)
@@ -123,7 +127,31 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // -------------------------------------------------------------
         case RiderState::Grounded: {
             bike.y = groundHeightAtX;
-            bike.angle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 4.0f)) % 16;
+
+            // Progressive wheelie control with tipping/crash check
+            if (arduboy.pressed(LEFT_BUTTON)) {
+                bike.wheelieAngle += WHEELIE_RISE_SPEED;
+
+                // Tipping point check: holding wheelie too long causes a backward flip crash
+                if (bike.wheelieAngle >= MAX_WHEELIE_THRESHOLD) {
+                    bike.state = RiderState::Crashing;
+                    bike.crashTimer = 60;
+                    bike.vx = 0.0f;
+                    bike.vy = 0.0f;
+                    bike.wheelieAngle = 0.0f;
+                    break;
+                }
+            } else {
+                bike.wheelieAngle -= WHEELIE_FALL_SPEED;
+                if (bike.wheelieAngle < 0.0f) {
+                    bike.wheelieAngle = 0.0f;
+                }
+            }
+
+            // Calculate current frame angle interpolating pitch smoothly relative to terrain slope
+            float baseAngleFloat = (16.0f + (groundSlopeAtX * 4.0f)) - bike.wheelieAngle;
+            while (baseAngleFloat < 0.0f) baseAngleFloat += 16.0f;
+            bike.angle = (uint8_t)baseAngleFloat % 16;
 
             if (arduboy.pressed(A_BUTTON)) {
                 bike.vx += BASE_ACCEL;
@@ -146,6 +174,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             if (groundSlopeAtX > 0.3f || upwardVelocity < -0.8f) {
                 bike.vy = upwardVelocity;
                 bike.angularVel = 0.0f; // Reset angular velocity so takeoff pitch holds stable until player inputs pitch
+                bike.wheelieAngle = 0.0f;
                 bike.state = RiderState::Airborne;
             }
             break;
@@ -155,6 +184,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // 2. AIRBORNE STATE
         // -------------------------------------------------------------
         case RiderState::Airborne: {
+            bike.wheelieAngle = 0.0f;
+
             if (arduboy.pressed(LEFT_BUTTON)) {
                 bike.angularVel -= AIR_PITCH_SPEED;
             } else if (arduboy.pressed(RIGHT_BUTTON)) {
@@ -194,6 +225,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // 3. CRASHING STATE
         // -------------------------------------------------------------
         case RiderState::Crashing: {
+            bike.wheelieAngle = 0.0f;
             if (bike.crashTimer > 0) {
                 bike.crashTimer--;
             } else {
