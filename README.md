@@ -1,5 +1,9 @@
 "# Moto-Mania-Arduboy" 
 
+v2.4: Added wheelie mechanic
+
+v2.3: Arrow pointing correct direction
+
 v2.2: improved airborn rotation spee
 
 V2.1: Bike goes airborne and stays in takeoff direction until user input
