@@ -123,7 +123,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // -------------------------------------------------------------
         case RiderState::Grounded: {
             bike.y = groundHeightAtX;
-            bike.angle = (uint8_t)(8 + (groundSlopeAtX * 4.0f)) % 16;
+            bike.angle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 4.0f)) % 16;
 
             if (arduboy.pressed(A_BUTTON)) {
                 bike.vx += BASE_ACCEL;
@@ -174,7 +174,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             if (bike.y >= groundHeightAtX) {
                 bike.y = groundHeightAtX;
 
-                uint8_t targetAngle = (uint8_t)(8 + (groundSlopeAtX * 4.0f)) % 16;
+                uint8_t targetAngle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 4.0f)) % 16;
                 int8_t angleDiff = abs((int8_t)bike.angle - (int8_t)targetAngle);
 
                 if (angleDiff <= 2 || angleDiff >= 14) {
@@ -228,8 +228,8 @@ void drawBikeWireframe(int16_t screenX, int16_t screenY, uint8_t angle) {
     // Main bike frame line
     arduboy.drawLine(screenX - dx, renderY - dy, screenX + dx, renderY + dy, WHITE);
     
-    // Front wheel dot to show direction/pitch clearly (inverted dx/dy offsets to point forward)
-    arduboy.fillCircle(screenX - dx, renderY - dy, 1, WHITE);
+    // Front wheel dot to show direction/pitch clearly (pointing forward in direction of motion)
+    arduboy.fillCircle(screenX + dx, renderY + dy, 1, WHITE);
 }
 
 // -------------------------------------------------------------
