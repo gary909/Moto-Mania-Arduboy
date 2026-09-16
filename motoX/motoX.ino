@@ -238,8 +238,58 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 }
 
 // -------------------------------------------------------------
-// 6. RENDERING HELPER
+// 6. RENDERING HELPER & TINY 3x5 HUD FONT
 // -------------------------------------------------------------
+void drawTinyChar(int16_t x, int16_t y, char c) {
+    uint8_t cols[3] = {0, 0, 0};
+    if (c >= '0' && c <= '9') {
+        static const uint8_t PROGMEM DIGITS[10][3] = {
+            {0x1F, 0x11, 0x1F}, // 0
+            {0x00, 0x1F, 0x00}, // 1
+            {0x1D, 0x15, 0x17}, // 2
+            {0x15, 0x15, 0x1F}, // 3
+            {0x07, 0x04, 0x1F}, // 4
+            {0x17, 0x15, 0x1D}, // 5
+            {0x1F, 0x15, 0x1D}, // 6
+            {0x01, 0x01, 0x1F}, // 7
+            {0x1F, 0x15, 0x1F}, // 8
+            {0x17, 0x15, 0x1F}  // 9
+        };
+        for (uint8_t i = 0; i < 3; i++) cols[i] = pgm_read_byte(&DIGITS[c - '0'][i]);
+    } else {
+        switch (c) {
+            case '.': cols[1] = 0x10; break;
+            case ':': cols[1] = 0x0A; break;
+            case 'S': cols[0] = 0x17; cols[1] = 0x15; cols[2] = 0x1D; break;
+            case 'P': cols[0] = 0x1F; cols[1] = 0x05; cols[2] = 0x03; break;
+            case 'D': cols[0] = 0x1F; cols[1] = 0x11; cols[2] = 0x0E; break;
+            case 'N': cols[0] = 0x1F; cols[1] = 0x02; cols[2] = 0x1F; break;
+            case 'I': cols[0] = 0x01; cols[1] = 0x1F; cols[2] = 0x01; break;
+            case 'T': cols[0] = 0x01; cols[1] = 0x1F; cols[2] = 0x01; break;
+            case 'R': cols[0] = 0x1F; cols[1] = 0x05; cols[2] = 0x1A; break;
+            case 'O': cols[0] = 0x0E; cols[1] = 0x11; cols[2] = 0x0E; break;
+            default: return;
+        }
+    }
+
+    for (uint8_t col = 0; col < 3; col++) {
+        uint8_t b = cols[col];
+        for (uint8_t row = 0; row < 5; row++) {
+            if (b & (1 << row)) {
+                arduboy.drawPixel(x + col, y + row, WHITE);
+            }
+        }
+    }
+}
+
+void drawTinyString(int16_t x, int16_t y, const char* str) {
+    while (*str) {
+        drawTinyChar(x, y, *str);
+        x += (*str == '.' || *str == ':') ? 3 : 4;
+        str++;
+    }
+}
+
 void drawTerrain(float cameraX) {
     for (int16_t screenX = 0; screenX < 128; screenX += 2) {
         float worldX = cameraX + screenX;
@@ -293,10 +343,13 @@ void loop() {
     // Render wireframe chassis line with front-wheel directional dot
     drawBikeWireframe(bikeScreenX, bikeScreenY, playerBike.angle);
 
-    arduboy.setCursor(0, 0);
-    arduboy.print(F("Spd:")); arduboy.print(playerBike.vx, 1);
-    arduboy.setCursor(64, 0);
-    arduboy.print(F("Nitros:")); arduboy.print(playerBike.nitros);
+    // Ultra-compact 3x5 HUD rendering
+    char hudBuffer[16];
+    snprintf(hudBuffer, sizeof(hudBuffer), "SPD:%d.%d", (int)playerBike.vx, (int)(playerBike.vx * 10) % 10);
+    drawTinyString(0, 0, hudBuffer);
+
+    snprintf(hudBuffer, sizeof(hudBuffer), "NITROS:%d", playerBike.nitros);
+    drawTinyString(78, 0, hudBuffer);
 
     if (playerBike.state == RiderState::Crashing) {
         arduboy.setCursor(44, 20);
