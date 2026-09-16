@@ -15,7 +15,7 @@ enum class RiderState : uint8_t {
 
 struct Bike {
     float x = 16.0f;
-    float y = 48.0f;
+    float y = 61.0f;
 
     float vx = 0.0f;
     float vy = 0.0f;
@@ -42,7 +42,7 @@ constexpr float AIR_PITCH_SPEED = 0.20f; // Moderated pitch speed for responsive
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
 constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
-constexpr int8_t BIKE_Y_OFFSET = 4; // Height offset above ground line for visual clarity
+constexpr int8_t BIKE_Y_OFFSET = 5; // Height offset above ground line for visual clarity and bottom-edge clipping safety
 
 // 16-step directional offset vectors for wireframe bike rendering (6-pixel radius)
 const int8_t PROGMEM CHASSIS_DX[16] = { 6,  5,  4,  2,  0, -2, -4, -5, -6, -5, -4, -2,  0,  2,  4,  5 };
@@ -57,29 +57,29 @@ Bike playerBike;
 constexpr uint8_t TERRAIN_STEP_X = 8; // Pixels between heightmap samples
 
 const uint8_t track1_heights[] PROGMEM = {
-    48, 48, 48, 48, 48, 48, 48, 48, // Flat start (0 - 56px)
-    44, 40, 36, 32, 28, 24,         // Ramp up (64 - 104px)
-    24, 24, 24,                     // Crest (112 - 128px)
-    28, 32, 36, 40, 44, 48,         // Ramp down (136 - 176px)
-    48, 48, 48, 48, 48, 48, 48, 48, // Flat middle (184 - 240px)
-    40, 32, 24, 16, 24, 32, 40, 48, // Whoops / Bumps (248 - 304px)
-    48, 48, 48, 48, 48, 48, 48, 48  // Flat end (312 - 368px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
+    31, 31, 31,                     // Crest (112 - 128px)
+    36, 41, 46, 51, 56, 61,         // Ramp down (136 - 176px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat middle (184 - 240px)
+    53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
+    61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
     // repeat course for testing:
-    ,48, 48, 48, 48, 48, 48, 48, 48, // Flat start (0 - 56px)
-    44, 40, 36, 32, 28, 24,         // Ramp up (64 - 104px)
-    24, 24, 24,                     // Crest (112 - 128px)
-    28, 32, 36, 40, 44, 48,         // Ramp down (136 - 176px)
-    48, 48, 48, 48, 48, 48, 48, 48, // Flat middle (184 - 240px)
-    40, 32, 24, 16, 24, 32, 40, 48, // Whoops / Bumps (248 - 304px)
-    48, 48, 48, 48, 48, 48, 48, 48  // Flat end (312 - 368px)
+    ,61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
+    31, 31, 31,                     // Crest (112 - 128px)
+    36, 41, 46, 51, 56, 61,         // Ramp down (136 - 176px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat middle (184 - 240px)
+    53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
+    61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
         // repeat course for testing:
-    ,48, 48, 48, 48, 48, 48, 48, 48, // Flat start (0 - 56px)
-    44, 40, 36, 32, 28, 24,         // Ramp up (64 - 104px)
-    24, 24, 24,                     // Crest (112 - 128px)
-    28, 32, 36, 40, 44, 48,         // Ramp down (136 - 176px)
-    48, 48, 48, 48, 48, 48, 48, 48, // Flat middle (184 - 240px)
-    40, 32, 24, 16, 24, 32, 40, 48, // Whoops / Bumps (248 - 304px)
-    48, 48, 48, 48, 48, 48, 48, 48  // Flat end (312 - 368px)
+    ,61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
+    31, 31, 31,                     // Crest (112 - 128px)
+    36, 41, 46, 51, 56, 61,         // Ramp down (136 - 176px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat middle (184 - 240px)
+    53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
+    61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
 };
 
 const uint16_t TRACK1_LENGTH_SAMPLES = sizeof(track1_heights) / sizeof(track1_heights[0]);
