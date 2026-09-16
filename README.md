@@ -1,29 +1,29 @@
 "# Moto-Mania-Arduboy" 
 
-v2.7: bike restarts on flat at correct angle
+v0.09: bike restarts on flat at correct angle
 
-v2.6: lowered test course start height to 61px
+v0.08: lowered test course start height to 61px
 
-v2.5: reduced font siz
+v0.07: reduced font siz
 
 <img width="300" height="400" alt="IMG_20260916_095001934 (1)" src="https://github.com/user-attachments/assets/a3201f0e-107e-437c-87e1-61b583f200bb" />
 
 
-v2.4: Added wheelie mechanic
+v0.06: Added wheelie mechanic
 
-v2.3: Arrow pointing correct direction
+v0.05: Arrow pointing correct direction
 
-v2.2: improved airborn rotation spee
+v0.04: improved airborn rotation spee
 
-V2.1: Bike goes airborne and stays in takeoff direction until user input
+V0.03: Bike goes airborne and stays in takeoff direction until user input
 
 
 <img width="300" alt="image" src="https://github.com/user-attachments/assets/7108e405-9618-4d15-9301-3d238ac3e3e4" />
 
 
-V2: Bike goes airborne. Changed icon to arrow.
+V0.02: Bike goes airborne. Changed icon to arrow.
 
-V1: Bike responds to track elements
+V0.01: Bike responds to track elements
 
 
 <img width="300" alt="IMG_20260914_093152150" src="https://github.com/user-attachments/assets/7a030761-4a23-4602-b276-1eba0d8cec5d" />
