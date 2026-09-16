@@ -229,7 +229,18 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             if (bike.crashTimer > 0) {
                 bike.crashTimer--;
             } else {
-                bike.angle = 0;
+                // Scan backward to relocate player onto the nearest prior flat section
+                float resetX = bike.x;
+                while (resetX > 0.0f && getGroundSlope(resetX) != 0.0f) {
+                    resetX -= TERRAIN_STEP_X;
+                }
+                if (resetX < 0.0f) resetX = 0.0f;
+
+                bike.x = resetX;
+                bike.y = getGroundHeight(resetX);
+                bike.angle = 0; // Flat forward alignment
+                bike.vx = 0.0f;
+                bike.vy = 0.0f;
                 bike.state = RiderState::Grounded;
             }
             break;
