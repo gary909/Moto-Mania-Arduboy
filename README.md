@@ -1,5 +1,10 @@
 "# Moto-Mania-Arduboy" 
 
+v2.5: reduced font siz
+
+<img width="300" height="400" alt="IMG_20260916_095001934 (1)" src="https://github.com/user-attachments/assets/a3201f0e-107e-437c-87e1-61b583f200bb" />
+
+
 v2.4: Added wheelie mechanic
 
 v2.3: Arrow pointing correct direction
