@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy" 
 
+v2.7: bike restarts on flat at correct angle
+
 v2.6: lowered test course start height to 61px
 
 v2.5: reduced font siz
