@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy" 
 
+v2.6: lowered test course start height to 61px
+
 v2.5: reduced font siz
 
 <img width="300" height="400" alt="IMG_20260916_095001934 (1)" src="https://github.com/user-attachments/assets/a3201f0e-107e-437c-87e1-61b583f200bb" />
