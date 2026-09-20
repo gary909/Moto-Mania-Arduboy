@@ -38,7 +38,7 @@ constexpr float GRAVITY = 0.25f;
 constexpr float DRAG = 0.985f;
 constexpr float BASE_ACCEL = 0.15f;
 constexpr float NITRO_BOOST = 0.60f;
-constexpr float AIR_PITCH_SPEED = 0.20f; // Moderated pitch speed for responsive yet controllable air rotation
+constexpr float AIR_PITCH_SPEED = 0.45f; // Increased for snappy taps
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
 constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
@@ -60,8 +60,8 @@ const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
     31, 31, 31,                     // Crest (112 - 128px)
@@ -154,7 +154,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             }
 
             // Calculate current frame angle interpolating pitch smoothly relative to terrain slope
-            float baseAngleFloat = (16.0f + (groundSlopeAtX * 4.0f)) - bike.wheelieAngle;
+            // Multiplier changed to 2.0f so a 1.0 (45deg) slope maps cleanly to 2 steps on the 16-step dial
+            float baseAngleFloat = (16.0f + (groundSlopeAtX * 2.0f)) - bike.wheelieAngle;
             while (baseAngleFloat < 0.0f) baseAngleFloat += 16.0f;
             bike.angle = (uint8_t)baseAngleFloat % 16;
 
@@ -202,7 +203,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             if (currentAngleFloat < 0.0f)  currentAngleFloat += 16.0f;
             bike.angle = (uint8_t)currentAngleFloat;
 
-            bike.angularVel *= 0.85f;
+            // Increased damping factor to 0.60f for less ice-like sliding of the pitch controls
+            bike.angularVel *= 0.60f;
             bike.vy += GRAVITY;
             bike.x += bike.vx;
             bike.y += bike.vy;
@@ -210,7 +212,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             if (bike.y >= groundHeightAtX) {
                 bike.y = groundHeightAtX;
 
-                uint8_t targetAngle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 4.0f)) % 16;
+                // Match landing target detection to the new 2.0f terrain slope multiplier
+                uint8_t targetAngle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 2.0f)) % 16;
                 int8_t angleDiff = abs((int8_t)bike.angle - (int8_t)targetAngle);
 
                 if (angleDiff <= 2 || angleDiff >= 14) {
