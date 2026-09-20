@@ -20,7 +20,7 @@ struct Bike {
     float vx = 0.0f;
     float vy = 0.0f;
 
-    uint8_t angle = 0;       // 0 to 15 mapped to rotated sprite angles
+    float angle = 0.0f;      // Stored as float so fractional mid-air rotation accumulates properly
     float angularVel = 0.0f; // Mid-air rotation speed
     float wheelieAngle = 0.0f; // Smooth grounded wheelie pitch offset
 
@@ -36,9 +36,9 @@ struct Bike {
 // -------------------------------------------------------------
 constexpr float GRAVITY = 0.25f;
 constexpr float DRAG = 0.985f;
-constexpr float BASE_ACCEL = 0.15f;
-constexpr float NITRO_BOOST = 0.60f;
-constexpr float AIR_PITCH_SPEED = 0.45f; // Increased for snappy taps
+constexpr float BASE_ACCEL = 0.09f; // Reduced from 0.15f for a more controllable top speed
+constexpr float NITRO_BOOST = 0.40f; // Scaled down from 0.60f
+constexpr float AIR_PITCH_SPEED = 0.0533f; // Calibrated for ~1 full 360-degree rotation per 2.0s at 60 FPS
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
 constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
@@ -157,7 +157,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             // Multiplier changed to 2.0f so a 1.0 (45deg) slope maps cleanly to 2 steps on the 16-step dial
             float baseAngleFloat = (16.0f + (groundSlopeAtX * 2.0f)) - bike.wheelieAngle;
             while (baseAngleFloat < 0.0f) baseAngleFloat += 16.0f;
-            bike.angle = (uint8_t)baseAngleFloat % 16;
+            while (baseAngleFloat >= 16.0f) baseAngleFloat -= 16.0f;
+            bike.angle = baseAngleFloat;
 
             if (arduboy.pressed(A_BUTTON)) {
                 bike.vx += BASE_ACCEL;
@@ -198,12 +199,10 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.angularVel += AIR_PITCH_SPEED;
             }
 
-            float currentAngleFloat = bike.angle + bike.angularVel;
-            if (currentAngleFloat >= 16.0f) currentAngleFloat -= 16.0f;
-            if (currentAngleFloat < 0.0f)  currentAngleFloat += 16.0f;
-            bike.angle = (uint8_t)currentAngleFloat;
+            bike.angle += bike.angularVel;
+            while (bike.angle >= 16.0f) bike.angle -= 16.0f;
+            while (bike.angle < 0.0f)  bike.angle += 16.0f;
 
-            // Increased damping factor to 0.60f for less ice-like sliding of the pitch controls
             bike.angularVel *= 0.60f;
             bike.vy += GRAVITY;
             bike.x += bike.vx;
@@ -213,8 +212,9 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.y = groundHeightAtX;
 
                 // Match landing target detection to the new 2.0f terrain slope multiplier
+                uint8_t landingAngle = (uint8_t)bike.angle % 16;
                 uint8_t targetAngle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 2.0f)) % 16;
-                int8_t angleDiff = abs((int8_t)bike.angle - (int8_t)targetAngle);
+                int8_t angleDiff = abs((int8_t)landingAngle - (int8_t)targetAngle);
 
                 if (angleDiff <= 2 || angleDiff >= 14) {
                     bike.vy = 0.0f;
@@ -246,7 +246,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 
                 bike.x = resetX;
                 bike.y = getGroundHeight(resetX);
-                bike.angle = 0; // Flat forward alignment
+                bike.angle = 0.0f; // Flat forward alignment
                 bike.vx = 0.0f;
                 bike.vy = 0.0f;
                 bike.state = RiderState::Grounded;
@@ -360,7 +360,7 @@ void loop() {
     int16_t bikeScreenY = (int16_t)playerBike.y;
     
     // Render wireframe chassis line with front-wheel directional dot
-    drawBikeWireframe(bikeScreenX, bikeScreenY, playerBike.angle);
+    drawBikeWireframe(bikeScreenX, bikeScreenY, (uint8_t)playerBike.angle % 16);
 
     // Ultra-compact 3x5 HUD rendering
     char hudBuffer[16];
