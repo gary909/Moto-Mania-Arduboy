@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy" 
 
+v0.12: Added up to jump button
+
 v0.11: improved rotation & bike speed
 
 v0.10: improved controls while taking off
