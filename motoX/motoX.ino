@@ -58,6 +58,11 @@ constexpr uint8_t TERRAIN_STEP_X = 8; // Pixels between heightmap samples
 
 const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
+    53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
     31, 31, 31,                     // Crest (112 - 128px)
     36, 41, 46, 51, 56, 61,         // Ramp down (136 - 176px)
