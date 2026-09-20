@@ -1,5 +1,9 @@
 "# Moto-Mania-Arduboy" 
 
+v0.11: improved rotation & bike speed
+
+v0.10: improved controls while taking off
+
 v0.09: bike restarts on flat at correct angle
 
 v0.08: lowered test course start height to 61px
