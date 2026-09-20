@@ -176,10 +176,14 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.x = 0;
             }
 
-            // Dynamic Takeoff Check: launch off sharp crests or up slopes at high speed
+            // Dynamic Takeoff Check: require UP_BUTTON input to achieve full jump launch
             float upwardVelocity = -bike.vx * groundSlopeAtX;
             if (groundSlopeAtX > 0.3f || upwardVelocity < -0.8f) {
-                bike.vy = upwardVelocity;
+                if (arduboy.pressed(UP_BUTTON)) {
+                    bike.vy = upwardVelocity; // Full launch height when pressing UP
+                } else {
+                    bike.vy = upwardVelocity * 0.15f; // Damped low hop if UP is not pressed
+                }
                 bike.angularVel = 0.0f; // Reset angular velocity so takeoff pitch holds stable until player inputs pitch
                 bike.wheelieAngle = 0.0f;
                 bike.state = RiderState::Airborne;
