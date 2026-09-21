@@ -192,10 +192,14 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 
             // Calculate current frame angle interpolating pitch smoothly relative to terrain slope
             // Multiplier changed to 2.0f so a 1.0 (45deg) slope maps cleanly to 2 steps on the 16-step dial
-            float baseAngleFloat = (16.0f + (groundSlopeAtX * 2.0f)) - bike.wheelieAngle;
+            float baseAngleFloat = (16.0f - (groundSlopeAtX * 2.0f)) + bike.wheelieAngle;
             while (baseAngleFloat < 0.0f) baseAngleFloat += 16.0f;
             while (baseAngleFloat >= 16.0f) baseAngleFloat -= 16.0f;
             bike.angle = baseAngleFloat;
+
+            // Calculate true vertical momentum from the previous frame's horizontal movement
+            float previousGroundY = getGroundHeight(bike.x - bike.vx);
+            float actualVy = groundHeightAtX - previousGroundY;
 
             if (arduboy.pressed(A_BUTTON)) {
                 bike.vx += BASE_ACCEL;
@@ -213,14 +217,28 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.x = 0;
             }
 
-            // Dynamic Takeoff Check: require UP_BUTTON input to achieve full jump launch
-            float upwardVelocity = -bike.vx * groundSlopeAtX;
-            if (groundSlopeAtX > 0.3f || upwardVelocity < -0.8f) {
+            // Dynamic Takeoff Check: allow natural air off ramps or manual jump via UP_BUTTON
+            float newGroundY = getGroundHeight(bike.x);
+            float projectedY = groundHeightAtX + actualVy;
+
+            bool naturalTakeoff = (projectedY < newGroundY - 0.2f);
+            bool jumpTakeoff = arduboy.pressed(UP_BUTTON) && (bike.vx > 0.1f);
+
+            if (naturalTakeoff || jumpTakeoff) {
                 if (arduboy.pressed(UP_BUTTON)) {
-                    bike.vy = upwardVelocity; // Full launch height when pressing UP
+                    // Manual jump: base jump + upward ramp momentum
+                    bike.vy = actualVy - 1.5f;
+                    if (bike.vy < -3.5f) bike.vy = -3.5f; // Cap max height to avoid leaving the screen
+                    if (bike.vy > -1.8f) bike.vy = -1.8f; // Ensure minimum consistent hop height
                 } else {
-                    bike.vy = upwardVelocity * 0.15f; // Damped low hop if UP is not pressed
+                    // Natural takeoff (ramp or sudden drop)
+                    if (actualVy < 0.0f) {
+                        bike.vy = actualVy * 0.85f; // Retain most of the upward speed
+                    } else {
+                        bike.vy = 0.0f; // Just falling off a ledge neutrally
+                    }
                 }
+                bike.y = groundHeightAtX + bike.vy;
                 bike.angularVel = 0.0f; // Reset angular velocity so takeoff pitch holds stable until player inputs pitch
                 bike.wheelieAngle = 0.0f;
                 bike.state = RiderState::Airborne;
@@ -235,9 +253,9 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.wheelieAngle = 0.0f;
 
             if (arduboy.pressed(LEFT_BUTTON)) {
-                bike.angularVel -= AIR_PITCH_SPEED;
-            } else if (arduboy.pressed(RIGHT_BUTTON)) {
                 bike.angularVel += AIR_PITCH_SPEED;
+            } else if (arduboy.pressed(RIGHT_BUTTON)) {
+                bike.angularVel -= AIR_PITCH_SPEED;
             }
 
             bike.angle += bike.angularVel;
@@ -254,7 +272,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 
                 // Match landing target detection to the new 2.0f terrain slope multiplier
                 uint8_t landingAngle = (uint8_t)bike.angle % 16;
-                uint8_t targetAngle = (uint8_t)(16 + (int8_t)(groundSlopeAtX * 2.0f)) % 16;
+                uint8_t targetAngle = (uint8_t)(16 - (int8_t)(groundSlopeAtX * 2.0f)) % 16;
                 int8_t angleDiff = abs((int8_t)landingAngle - (int8_t)targetAngle);
 
                 if (angleDiff <= 2 || angleDiff >= 14) {
