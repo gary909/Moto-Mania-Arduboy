@@ -313,11 +313,13 @@ void drawTinyString(int16_t x, int16_t y, const char* str) {
     }
 }
 
-void drawTerrain(float cameraX) {
+void drawTerrain(float cameraX, float cameraY) {
     for (int16_t screenX = 0; screenX < 128; screenX += 2) {
         float worldX = cameraX + screenX;
-        int16_t y1 = (int16_t)getGroundHeight(worldX);
-        int16_t y2 = (int16_t)getGroundHeight(worldX + 2);
+        
+        // Offset terrain rendering by the vertical camera position
+        int16_t y1 = (int16_t)(getGroundHeight(worldX) - cameraY);
+        int16_t y2 = (int16_t)(getGroundHeight(worldX + 2) - cameraY);
         
         arduboy.drawLine(screenX, y1, screenX + 2, y2, WHITE);
     }
@@ -358,15 +360,22 @@ void loop() {
     float cameraX = playerBike.x - 32.0f;
     if (cameraX < 0) cameraX = 0;
 
-    drawTerrain(cameraX);
+    // Calculate vertical camera position. 
+    // This keeps the bike at least 24 pixels from the top of the screen when launching high into the air.
+    float cameraY = playerBike.y - 24.0f;
+    if (cameraY > 0.0f) {
+        cameraY = 0.0f; // Clamps the camera so it doesn't push the ground beneath the standard level
+    }
+
+    drawTerrain(cameraX, cameraY);
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
-    int16_t bikeScreenY = (int16_t)playerBike.y;
+    int16_t bikeScreenY = (int16_t)(playerBike.y - cameraY); // Subtract cameraY from the bike's screen Y
     
     // Render wireframe chassis line with front-wheel directional dot
     drawBikeWireframe(bikeScreenX, bikeScreenY, (uint8_t)playerBike.angle % 16);
 
-    // Ultra-compact 3x5 HUD rendering
+    // Ultra-compact 3x5 HUD rendering (UI stays absolute, unaffected by camera)
     char hudBuffer[16];
     snprintf(hudBuffer, sizeof(hudBuffer), "SPD:%d.%d", (int)playerBike.vx, (int)(playerBike.vx * 10) % 10);
     drawTinyString(0, 0, hudBuffer);
