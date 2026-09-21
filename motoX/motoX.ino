@@ -34,9 +34,9 @@ struct Bike {
 // -------------------------------------------------------------
 // 2. PHYSICS & CONSTANTS
 // -------------------------------------------------------------
-constexpr float GRAVITY = 0.25f;
-constexpr float DRAG = 0.985f;
-constexpr float BASE_ACCEL = 0.09f; // Reduced from 0.15f for a more controllable top speed
+constexpr float GRAVITY = 0.15f; // Reduced from 0.25f so the bike falls less quickly
+constexpr float DRAG = 0.975f; // Reduced from 0.985f to lower the top speed
+constexpr float BASE_ACCEL = 0.07f; // Reduced from 0.09f for a more controllable top speed
 constexpr float NITRO_BOOST = 0.40f; // Scaled down from 0.60f
 constexpr float AIR_PITCH_SPEED = 0.0533f; // Calibrated for ~1 full 360-degree rotation per 2.0s at 60 FPS
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
