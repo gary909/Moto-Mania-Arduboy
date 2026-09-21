@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy" 
 
+v0.13: Cam follows bike in air
+
 v0.12: Added up to jump button
 
 v0.11: improved rotation & bike speed
