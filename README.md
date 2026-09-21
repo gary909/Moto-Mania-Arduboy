@@ -1,4 +1,6 @@
-"# Moto-Mania-Arduboy" 
+"# Moto-Mania-Arduboy"
+
+v0.14: Gravity improvement
 
 v0.13: Cam follows bike in air
 
