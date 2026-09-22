@@ -227,8 +227,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 // If launching off a ramp (upward momentum actualVy < -0.1f) AND holding UP, boost the jump height
                 if (arduboy.pressed(UP_BUTTON) && actualVy < -0.1f) {
                     // Boosted jump: upward ramp momentum + extra boost
-                    bike.vy = actualVy - 1.5f;
-                    if (bike.vy < -3.5f) bike.vy = -3.5f; // Cap max height to avoid leaving the screen
+                    bike.vy = actualVy - 0.8f;
+                    if (bike.vy < -2.8f) bike.vy = -2.8f; // Cap max height to avoid leaving the screen
                 } else {
                     // Natural takeoff (ramp or sudden drop without jump boost)
                     if (actualVy < 0.0f) {
