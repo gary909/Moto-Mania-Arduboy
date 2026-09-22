@@ -34,11 +34,11 @@ struct Bike {
 // -------------------------------------------------------------
 // 2. PHYSICS & CONSTANTS
 // -------------------------------------------------------------
-constexpr float GRAVITY = 0.15f; // Reduced from 0.25f so the bike falls less quickly
-constexpr float DRAG = 0.975f; // Reduced from 0.985f to lower the top speed
-constexpr float BASE_ACCEL = 0.07f; // Reduced from 0.09f for a more controllable top speed
-constexpr float NITRO_BOOST = 0.40f; // Scaled down from 0.60f
-constexpr float AIR_PITCH_SPEED = 0.0533f; // Calibrated for ~1 full 360-degree rotation per 2.0s at 60 FPS
+constexpr float GRAVITY = 0.075f; // Halved from 0.15f for lighter airtime
+constexpr float DRAG = 0.970f; // Adjusted from 0.975f to slightly reduce top speed
+constexpr float BASE_ACCEL = 0.055f; // Reduced from 0.07f for slightly slower acceleration
+constexpr float NITRO_BOOST = 0.35f; // Scaled down from 0.40f
+constexpr float AIR_PITCH_SPEED = 0.1067f; // Calibrated for ~1 full 360-degree rotation per 1.0s at 60 FPS
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
 constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
