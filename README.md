@@ -8,6 +8,7 @@ v0.15: Added Bike img
 
 <img width="300" alt="IMG_20260921_221955115" src="https://github.com/user-attachments/assets/5b2e1fc6-49a1-46d7-ab8a-93057b3b1991" />
 
+<img width="16" height="256" alt="motoXbike" src="https://github.com/user-attachments/assets/bba97bb7-f8f4-44ce-9558-6479056f721b" />
 
 v0.14: Gravity improvement
 
