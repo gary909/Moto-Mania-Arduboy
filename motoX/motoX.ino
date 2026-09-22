@@ -48,7 +48,8 @@ constexpr int8_t BIKE_Y_OFFSET = 5; // Height offset above ground line for visua
 Bike playerBike;
 
 // -------------------------------------------------------------
-// 3. SPRITE DATA (PROGMEM) - INVERTED (White Bike, Transparent/Black Background)
+// 3. SPRITE DATA (PROGMEM) 
+// -> REPLACE THESE ARRAYS WITH YOUR NEWLY GENERATED IMAGES <-
 // -------------------------------------------------------------
 // motoXbike 16 x 256 (mono, SSD1306 vertical pages, LSB=top)
 const int motoXbike_width  = 16;
@@ -86,6 +87,14 @@ const unsigned char motoXbike[] PROGMEM = {
   0x01, 0x03, 0x00, 0x01, 0x00, 0x03, 0x23, 0x69, 0x0b, 0x2b, 0x06, 0x14, 0x00, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x80, 0x80, 0x00, 0x80, 0xb0, 0xf8, 0xb8, 0x90, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00,
   0x00, 0x0c, 0x12, 0x12, 0x0d, 0x03, 0x07, 0x07, 0x01, 0x0d, 0x12, 0x13, 0x0c, 0x01, 0x00, 0x00
+};
+
+// Static 2-frame animation (16x32px, 2 frames of 16x16px = 64 bytes total)
+const unsigned char epd_bitmap_motoXbikeStatic [] PROGMEM = {
+	0xa0, 0x00, 0x40, 0x40, 0x80, 0xc0, 0xf0, 0xf8, 0xf8, 0xd0, 0x40, 0xc0, 0x40, 0x80, 0x00, 0x00, 
+	0x00, 0x0c, 0x12, 0x12, 0x0c, 0x01, 0x03, 0x03, 0x00, 0x0c, 0x12, 0x13, 0x0c, 0x00, 0x00, 0x00, 
+	0x00, 0x00, 0x80, 0x80, 0x00, 0x80, 0xb0, 0xf8, 0xb8, 0x90, 0x80, 0x80, 0x80, 0x00, 0x00, 0x00, 
+	0x01, 0x0c, 0x12, 0x12, 0x0d, 0x03, 0x07, 0x07, 0x01, 0x0d, 0x12, 0x13, 0x0c, 0x01, 0x00, 0x00
 };
 
 // -------------------------------------------------------------
@@ -385,6 +394,7 @@ void drawTerrain(float cameraX, float cameraY) {
 void setup() {
     arduboy.begin();
     arduboy.setFrameRate(60);
+    // arduboy.invert(true) removed to keep terrain normally rendered
 }
 
 void loop() {
@@ -412,17 +422,29 @@ void loop() {
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
     int16_t bikeScreenY = (int16_t)(playerBike.y - cameraY); // Subtract cameraY from the bike's screen Y
     
-    // Determine which of the 16 rotational frames to display
-    uint8_t frameIndex = (uint8_t)playerBike.angle % 16;
-    
     // Offset the 16x16 sprite by -8 so it renders perfectly centered on the coordinate
     // Apply BIKE_Y_OFFSET to lift the sprite visually above the terrain line
     int16_t renderX = bikeScreenX - 8;
     int16_t renderY = bikeScreenY - 8 - BIKE_Y_OFFSET;
+
+    // Determine whether to play the 2-frame static idle animation or active rotation frames
+    const unsigned char* activeBitmap;
+    uint8_t activeFrameIndex;
+
+    // Only play the static animation if grounded, stopped, AND on a perfectly flat surface
+    bool isStatic = (playerBike.state == RiderState::Grounded && playerBike.vx < 0.01f && getGroundSlope(playerBike.x) == 0.0f);
+
+    if (isStatic) {
+        activeBitmap = epd_bitmap_motoXbikeStatic;
+        // 60 FPS / 7 = ~8.5 updates/sec (loops the 2-frame idle sequence roughly 4 times per second)
+        activeFrameIndex = (arduboy.frameCount / 7) % 2;
+    } else {
+        activeBitmap = motoXbike;
+        activeFrameIndex = (uint8_t)playerBike.angle % 16;
+    }
     
-    // A 16x16 pixel sprite is exactly 32 bytes (16 columns * 2 vertical 8-bit pages)
-    // Multiply frameIndex by 32 to advance the memory pointer to the target frame
-    arduboy.drawBitmap(renderX, renderY, motoXbike + (frameIndex * 32), 16, 16, WHITE);
+    // A 16x16 pixel frame uses 32 bytes (16 columns * 2 vertical 8-bit pages)
+    arduboy.drawBitmap(renderX, renderY, activeBitmap + (activeFrameIndex * 32), 16, 16, WHITE);
 
     // Ultra-compact 3x5 HUD rendering (UI stays absolute, unaffected by camera)
     char hudBuffer[16];
