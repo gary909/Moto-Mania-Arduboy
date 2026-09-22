@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy"
 
+v0.19: reduced jump height
+
 v0.18: rotate/top speed/gravity improved - feels good now
 
 v0.16: bike physics
