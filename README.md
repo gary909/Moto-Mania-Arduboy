@@ -1,5 +1,13 @@
 "# Moto-Mania-Arduboy"
 
+v0.20: added static bike animation
+
+<img width="16" height="32" alt="motoXbikeStatic" src="https://github.com/user-attachments/assets/79f59ab8-fd03-4f86-8219-0e6b8f255e66" />
+
+
+<img width="300" alt="VID_20260922_133057994-ezgif com-optimize" src="https://github.com/user-attachments/assets/ecf194da-9169-4602-b441-5d9cf1e96d6f" />
+
+
 v0.19: reduced jump height
 
 v0.18: rotate/top speed/gravity improved - feels good now
