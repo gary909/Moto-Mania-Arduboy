@@ -25,7 +25,7 @@ struct Bike {
     float wheelieAngle = 0.0f; // Smooth grounded wheelie pitch offset
 
     uint8_t nitros = 3;
-    bool nitroActive = false;
+    uint8_t nitroTimer = 0; // Replaced nitroActive with a timer for sustained boosting
     uint8_t crashTimer = 0;
 
     RiderState state = RiderState::Grounded;
@@ -37,7 +37,8 @@ struct Bike {
 constexpr float GRAVITY = 0.075f; // Halved from 0.15f for lighter airtime
 constexpr float DRAG = 0.970f; // Adjusted from 0.975f to slightly reduce top speed
 constexpr float BASE_ACCEL = 0.055f; // Reduced from 0.07f for slightly slower acceleration
-constexpr float NITRO_BOOST = 0.35f; // Scaled down from 0.40f
+constexpr float NITRO_ACCEL = 0.08f; // Sustained acceleration per frame while active
+constexpr uint8_t NITRO_FRAMES = 15; // Duration of boost (60 frames = 1 second) : 15 = 1/4 of a second
 constexpr float AIR_PITCH_SPEED = 0.1067f; // Calibrated for ~1 full 360-degree rotation per 1.0s at 60 FPS
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
@@ -171,6 +172,22 @@ float getGroundSlope(float worldX) {
 // 6. GAME LOGIC
 // -------------------------------------------------------------
 void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
+    // Process sustained nitro boost globally so it works on the ground and in the air
+    if (arduboy.justPressed(B_BUTTON) && bike.nitros > 0 && bike.nitroTimer == 0) {
+        bike.nitros--;
+        bike.nitroTimer = NITRO_FRAMES;
+    }
+
+    if (bike.nitroTimer > 0) {
+        bike.nitroTimer--;
+        bike.vx += NITRO_ACCEL;
+        
+        // Hard cap horizontal speed to prevent tunneling through terrain while boosting
+        if (bike.vx > 4.5f) {
+            bike.vx = 4.5f;
+        }
+    }
+
     switch (bike.state) {
         
         // -------------------------------------------------------------
@@ -190,6 +207,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                     bike.vx = 0.0f;
                     bike.vy = 0.0f;
                     bike.wheelieAngle = 0.0f;
+                    bike.nitroTimer = 0; // Cancel nitro on crash
                     break;
                 }
             } else {
@@ -212,11 +230,6 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 
             if (arduboy.pressed(A_BUTTON)) {
                 bike.vx += BASE_ACCEL;
-            }
-
-            if (arduboy.justPressed(B_BUTTON) && bike.nitros > 0) {
-                bike.vx += NITRO_BOOST;
-                bike.nitros--;
             }
 
             bike.vx *= DRAG;
@@ -291,6 +304,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                     bike.crashTimer = 60;
                     bike.vx = 0.0f;
                     bike.vy = 0.0f;
+                    bike.nitroTimer = 0; // Cancel nitro on crash
                 }
             }
             break;
