@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy"
 
+v0.21: added nitro boost
+
 v0.20: added static bike animation
 
 <img width="16" height="32" alt="motoXbikeStatic" src="https://github.com/user-attachments/assets/79f59ab8-fd03-4f86-8219-0e6b8f255e66" />
