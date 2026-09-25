@@ -2,6 +2,9 @@
 
 v0.22: added nitro pickups
 
+<img width="300" alt="IMG_20260925_095534548" src="https://github.com/user-attachments/assets/a410f28d-196f-4c03-a8af-b952bc38ad29" />
+
+
 v0.21: added nitro boost
 
 v0.20: added static bike animation
