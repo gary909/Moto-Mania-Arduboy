@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy"
 
+v0.22: added nitro pickups
+
 v0.21: added nitro boost
 
 v0.20: added static bike animation
