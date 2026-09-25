@@ -31,6 +31,12 @@ struct Bike {
     RiderState state = RiderState::Grounded;
 };
 
+struct Item {
+    float x;
+    float y;
+    bool active;
+};
+
 // -------------------------------------------------------------
 // 2. PHYSICS & CONSTANTS
 // -------------------------------------------------------------
@@ -38,7 +44,7 @@ constexpr float GRAVITY = 0.075f; // Halved from 0.15f for lighter airtime
 constexpr float DRAG = 0.970f; // Adjusted from 0.975f to slightly reduce top speed
 constexpr float BASE_ACCEL = 0.055f; // Reduced from 0.07f for slightly slower acceleration
 constexpr float NITRO_ACCEL = 0.08f; // Sustained acceleration per frame while active
-constexpr uint8_t NITRO_FRAMES = 15; // Duration of boost (60 frames = 1 second) : 15 = 1/4 of a second
+constexpr uint8_t NITRO_FRAMES = 15; // Duration of boost (15 frames = 1/4 second)
 constexpr float AIR_PITCH_SPEED = 0.1067f; // Calibrated for ~1 full 360-degree rotation per 1.0s at 60 FPS
 constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per frame
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
@@ -48,9 +54,15 @@ constexpr int8_t BIKE_Y_OFFSET = 5; // Height offset above ground line for visua
 // Global Game Objects
 Bike playerBike;
 
+constexpr uint8_t MAX_ITEMS = 3;
+Item nitroItems[MAX_ITEMS] = {
+    { 80.0f, 0.0f, true },
+    { 200.0f, 0.0f, true },
+    { 320.0f, 0.0f, true }
+};
+
 // -------------------------------------------------------------
 // 3. SPRITE DATA (PROGMEM) 
-// -> REPLACE THESE ARRAYS WITH YOUR NEWLY GENERATED IMAGES <-
 // -------------------------------------------------------------
 // motoXbike 16 x 256 (mono, SSD1306 vertical pages, LSB=top)
 const int motoXbike_width  = 16;
@@ -171,6 +183,24 @@ float getGroundSlope(float worldX) {
 // -------------------------------------------------------------
 // 6. GAME LOGIC
 // -------------------------------------------------------------
+void updateItems(Bike& bike) {
+    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+        if (nitroItems[i].active) {
+            float dx = bike.x - nitroItems[i].x;
+            
+            // Calculate relative vertical distance. The bike sprite visual center
+            // is roughly 8 pixels above the terrain contact point (bike.y), minus the offset.
+            float dy = (bike.y - BIKE_Y_OFFSET - 8) - nitroItems[i].y; 
+            
+            // Basic bounding box collision detection (~12px radius leeway)
+            if (abs(dx) < 12.0f && abs(dy) < 12.0f) {
+                bike.nitros += 3;
+                nitroItems[i].active = false;
+            }
+        }
+    }
+}
+
 void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
     // Process sustained nitro boost globally so it works on the ground and in the air
     if (arduboy.justPressed(B_BUTTON) && bike.nitros > 0 && bike.nitroTimer == 0) {
@@ -237,6 +267,11 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 
             if (bike.x > TRACK1_MAX_X - 16) {
                 bike.x = 0;
+                
+                // Respawn all items to make them reusable for the next lap
+                for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+                    nitroItems[i].active = true;
+                }
             }
 
             // Dynamic Takeoff Check: allow natural air off ramps only (no flat-ground jumping)
@@ -287,6 +322,15 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.vy += GRAVITY;
             bike.x += bike.vx;
             bike.y += bike.vy;
+
+            // Handle track wrap-around in mid-air
+            if (bike.x > TRACK1_MAX_X - 16) {
+                bike.x = 0;
+                // Respawn items for the next lap
+                for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+                    nitroItems[i].active = true;
+                }
+            }
 
             if (bike.y >= groundHeightAtX) {
                 bike.y = groundHeightAtX;
@@ -340,7 +384,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
 // -------------------------------------------------------------
 // 7. RENDERING HELPER & TINY 3x5 HUD FONT
 // -------------------------------------------------------------
-void drawTinyChar(int16_t x, int16_t y, char c) {
+void drawTinyChar(int16_t x, int16_t y, char c, uint8_t color = WHITE) {
     uint8_t cols[3] = {0, 0, 0};
     if (c >= '0' && c <= '9') {
         static const uint8_t PROGMEM DIGITS[10][3] = {
@@ -376,7 +420,7 @@ void drawTinyChar(int16_t x, int16_t y, char c) {
         uint8_t b = cols[col];
         for (uint8_t row = 0; row < 5; row++) {
             if (b & (1 << row)) {
-                arduboy.drawPixel(x + col, y + row, WHITE);
+                arduboy.drawPixel(x + col, y + row, color);
             }
         }
     }
@@ -387,6 +431,24 @@ void drawTinyString(int16_t x, int16_t y, const char* str) {
         drawTinyChar(x, y, *str);
         x += (*str == '.' || *str == ':') ? 3 : 4;
         str++;
+    }
+}
+
+void drawItems(float cameraX, float cameraY) {
+    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+        if (nitroItems[i].active) {
+            int16_t screenX = (int16_t)(nitroItems[i].x - cameraX);
+            int16_t screenY = (int16_t)(nitroItems[i].y - cameraY);
+            
+            // Only draw if visible on screen
+            if (screenX > -10 && screenX < 138) {
+                // Fill 9x9 solid white square centered on the item's position
+                arduboy.fillRect(screenX - 4, screenY - 4, 9, 9, WHITE);
+                
+                // Draw black 'N' inside (3x5 character, mathematically centered inside 9x9)
+                drawTinyChar(screenX - 1, screenY - 2, 'N', BLACK);
+            }
+        }
     }
 }
 
@@ -408,7 +470,11 @@ void drawTerrain(float cameraX, float cameraY) {
 void setup() {
     arduboy.begin();
     arduboy.setFrameRate(60);
-    // arduboy.invert(true) removed to keep terrain normally rendered
+    
+    // Set vertical position for items to hover slightly above the terrain
+    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+        nitroItems[i].y = getGroundHeight(nitroItems[i].x) - 14.0f;
+    }
 }
 
 void loop() {
@@ -420,6 +486,7 @@ void loop() {
     float currentSlope  = getGroundSlope(playerBike.x);
 
     updateBike(playerBike, currentGround, currentSlope);
+    updateItems(playerBike);
 
     float cameraX = playerBike.x - 32.0f;
     if (cameraX < 0) cameraX = 0;
@@ -432,6 +499,7 @@ void loop() {
     }
 
     drawTerrain(cameraX, cameraY);
+    drawItems(cameraX, cameraY);
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
     int16_t bikeScreenY = (int16_t)(playerBike.y - cameraY); // Subtract cameraY from the bike's screen Y
