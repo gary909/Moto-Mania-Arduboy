@@ -27,6 +27,7 @@ struct Bike {
 
     uint8_t nitros = 3;
     uint8_t nitroTimer = 0; // Replaced nitroActive with a timer for sustained boosting
+    uint8_t accelSmokeTimer = 0; // Timer for standing start acceleration smoke effect
     uint8_t crashTimer = 0;
 
     RiderState state = RiderState::Grounded;
@@ -224,6 +225,10 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         }
     }
 
+    if (bike.accelSmokeTimer > 0) {
+        bike.accelSmokeTimer--;
+    }
+
     switch (bike.state) {
         
         // -------------------------------------------------------------
@@ -244,6 +249,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                     bike.vy = 0.0f;
                     bike.wheelieAngle = 0.0f;
                     bike.nitroTimer = 0; // Cancel nitro on crash
+                    bike.accelSmokeTimer = 0; // Cancel smoke on crash
                     break;
                 }
             } else {
@@ -265,6 +271,10 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             float actualVy = groundHeightAtX - previousGroundY;
 
             if (arduboy.pressed(A_BUTTON)) {
+                // Trigger standing start smoke effect if accelerating from a stop
+                if (bike.vx < 0.01f) {
+                    bike.accelSmokeTimer = NITRO_FRAMES;
+                }
                 bike.vx += BASE_ACCEL;
             }
 
@@ -355,6 +365,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                     bike.vx = 0.0f;
                     bike.vy = 0.0f;
                     bike.nitroTimer = 0; // Cancel nitro on crash
+                    bike.accelSmokeTimer = 0; // Cancel smoke on crash
                 }
             }
             break;
@@ -531,8 +542,8 @@ void loop() {
         activeFrameIndex = (uint8_t)playerBike.angle % 16;
     }
     
-    // Draw smoke effect behind exhaust pipe while nitro boost is active
-    if (playerBike.nitroTimer > 0) {
+    // Draw smoke effect behind exhaust pipe while nitro boost or standing acceleration is active
+    if (playerBike.nitroTimer > 0 || playerBike.accelSmokeTimer > 0) {
         // Convert current 16-step bike angle into radians
         float rad = playerBike.angle * (3.14159265f / 8.0f);
         
