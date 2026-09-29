@@ -1,5 +1,6 @@
 #include <Arduboy2.h>
 #include <avr/pgmspace.h>
+#include <math.h>
 
 // Global Arduboy Instance
 Arduboy2 arduboy;
@@ -64,6 +65,11 @@ Item nitroItems[MAX_ITEMS] = {
 // -------------------------------------------------------------
 // 3. SPRITE DATA (PROGMEM) 
 // -------------------------------------------------------------
+// 'smoke', 8x8px (mono, SSD1306 vertical pages, LSB=top)
+const unsigned char epd_bitmap_smoke[] PROGMEM = {
+    0x00, 0x00, 0x54, 0x00, 0x28, 0x00, 0x00, 0x00
+};
+
 // motoXbike 16 x 256 (mono, SSD1306 vertical pages, LSB=top)
 const int motoXbike_width  = 16;
 const int motoXbike_height = 256;
@@ -525,6 +531,19 @@ void loop() {
         activeFrameIndex = (uint8_t)playerBike.angle % 16;
     }
     
+    // Draw smoke effect behind exhaust pipe while nitro boost is active
+    if (playerBike.nitroTimer > 0) {
+        // Convert current 16-step bike angle into radians
+        float rad = playerBike.angle * (3.14159265f / 8.0f);
+        
+        // Calculate offset 10 pixels directly behind the visual center of the motorbike
+        const float dist = 10.0f;
+        int16_t smokeX = (int16_t)(bikeScreenX - cosf(rad) * dist - 4.0f);
+        int16_t smokeY = (int16_t)(bikeScreenY - BIKE_Y_OFFSET + sinf(rad) * dist - 4.0f);
+
+        arduboy.drawBitmap(smokeX, smokeY, epd_bitmap_smoke, 8, 8, WHITE);
+    }
+
     // A 16x16 pixel frame uses 32 bytes (16 columns * 2 vertical 8-bit pages)
     arduboy.drawBitmap(renderX, renderY, activeBitmap + (activeFrameIndex * 32), 16, 16, WHITE);
 
