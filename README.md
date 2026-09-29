@@ -1,5 +1,13 @@
 "# Moto-Mania-Arduboy"
 
+v0.24: added smoke puff to start takeoff"
+
+
+<img width="320" height="186" alt="VID_20260929_110749288-ezgif com-optimize" src="https://github.com/user-attachments/assets/d0b93d47-88af-403c-99c8-17f835585a9b" />
+
+
+v0.23: added smoke puff to nitro boost"
+
 v0.22: added nitro pickups
 
 <img width="300" alt="IMG_20260925_095534548" src="https://github.com/user-attachments/assets/a410f28d-196f-4c03-a8af-b952bc38ad29" />
