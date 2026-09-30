@@ -46,8 +46,10 @@ struct Item {
 };
 
 enum class LoopType : uint8_t {
-    Standard, // Symmetric opening at the bottom, square frame
-    Tilted    // Opening swept toward the lower-left, chamfered frame
+    Standard,   // Symmetric opening at the bottom, square frame
+    Tilted,     // Opening swept toward the lower-left, chamfered frame
+    Side,       // C-shape opening to the right, entered from below on its right side
+    QuarterPipe // Floating curve -> vertical wall -> lip; caught from a jump, launches up and slightly back
 };
 
 struct Loop {
@@ -73,9 +75,14 @@ constexpr int8_t BIKE_Y_OFFSET = 5; // Height offset above ground line for visua
 constexpr float LOOP_GAP_HALF = 0.7f; // Half-angle (radians) of the open bottom of Standard loops
 constexpr float TILTED_GAP_LO = -1.4f; // Tilted loop opening: from just below the left side...
 constexpr float TILTED_GAP_HI = 0.5f;  // ...to just right of the bottom
+constexpr float SIDE_GAP_LO = 0.6f; // Side (C) loop opening: from lower-right...
+constexpr float SIDE_GAP_HI = 2.2f; // ...to upper-right
+constexpr int16_t QP_WALL_LEN = 24; // Straight vertical section above a quarter pipe's curve
+constexpr int16_t QP_LIP_LEN = 6;   // Short lip at the top of the wall
+constexpr float QP_LIP_ANGLE = 0.35f; // Lip tilt back toward the left (radians from vertical)
 constexpr float LOOP_ENTRY_TOLERANCE = 0.8f; // Extra angle beside the opening that still counts as entering
 constexpr int16_t LOOP_FRAME_PAD = 4; // Visual spacing between the loop circle and its outer box frame
-constexpr int16_t LOOP_FRAME_CHAMFER = 10; // Size of the cut top corners on Tilted loop frames
+constexpr int16_t LOOP_FRAME_CHAMFER = 10; // Size of the cut corners on Tilted and Side loop frames
 constexpr float LOOP_GRAVITY_SCALE = 0.5f; // Softer gravity inside loops for arcade feel; raise to make loops harder
 
 // Global Game Objects
@@ -181,6 +188,15 @@ const uint8_t track1_heights[] PROGMEM = {
     21, 21, 21, 21, 21, 21, 21, 21, // Flat top
     29, 37, 45, 53, 61,             // Straight back slope
     61, 61, 61, 61, 61, 61, 61, 61  // Flat run-out
+    // Kicker ramp for the floating quarter pipe + C loop (ramp top at x=1776)
+    ,61, 61, 61, 61, 61, 61, 61, 61, // Flat approach
+    56, 51, 46, 41, 36, 31,         // Ramp up
+    31, 31, 31,                     // Crest
+    36, 41, 46, 51, 56, 61,         // Ramp down
+    61, 61, 61, 61, 61, 61, 61, 61, // Flat landing area
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
 };
 
 const uint16_t TRACK1_LENGTH_SAMPLES = sizeof(track1_heights) / sizeof(track1_heights[0]);
@@ -190,6 +206,10 @@ const float TRACK1_MAX_X = (TRACK1_LENGTH_SAMPLES - 1) * TERRAIN_STEP_X;
 const Loop track1_loops[] PROGMEM = {
     { 450, -16, 28, LoopType::Standard },
     { 826, -16, 28, LoopType::Tilted },
+    // Quarter pipe catches a nitro + UP jump off the ramp at x=1776; its lip launches up-left into the C.
+    // Keep the C center about (-23, -7) from the lip end (x + r - 2, y - QP_WALL_LEN - 6).
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
 };
 constexpr uint8_t TRACK1_LOOP_COUNT = sizeof(track1_loops) / sizeof(track1_loops[0]);
 
@@ -241,14 +261,44 @@ float getGroundSlope(float worldX) {
     return (float)heightDiff / (float)TERRAIN_STEP_X;
 }
 
+LoopType getLoopType(uint8_t index) {
+    return (LoopType)pgm_read_byte(&track1_loops[index].type);
+}
+
 // Opening of a loop as an angle range (0 = bottom, positive = toward the right side)
 void getLoopGap(uint8_t index, float& lo, float& hi) {
-    if ((LoopType)pgm_read_byte(&track1_loops[index].type) == LoopType::Tilted) {
-        lo = TILTED_GAP_LO;
-        hi = TILTED_GAP_HI;
+    switch (getLoopType(index)) {
+        case LoopType::Tilted:
+            lo = TILTED_GAP_LO;
+            hi = TILTED_GAP_HI;
+            break;
+        case LoopType::Side:
+            lo = SIDE_GAP_LO;
+            hi = SIDE_GAP_HI;
+            break;
+        default:
+            lo = -LOOP_GAP_HALF;
+            hi = LOOP_GAP_HALF;
+            break;
+    }
+}
+
+// Offset from a quarter pipe's center and travel direction after distance t along its surface
+void quarterPipePose(float r, float t, float& dx, float& dy, float& dir) {
+    float arcLen = r * (PI / 2);
+    if (t <= arcLen) {
+        dir = t / r;
+        dx = r * sinf(dir);
+        dy = r * cosf(dir);
+    } else if (t <= arcLen + QP_WALL_LEN) {
+        dir = PI / 2;
+        dx = r;
+        dy = -(t - arcLen);
     } else {
-        lo = -LOOP_GAP_HALF;
-        hi = LOOP_GAP_HALF;
+        float u = t - arcLen - QP_WALL_LEN;
+        dir = PI / 2 + QP_LIP_ANGLE;
+        dx = r - u * sinf(QP_LIP_ANGLE);
+        dy = -QP_WALL_LEN - u * cosf(QP_LIP_ANGLE);
     }
 }
 
@@ -420,19 +470,29 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 if (wasInside == isInside) continue;
 
                 float theta = atan2f(dx, dy); // 0 = bottom of the loop
-                float gapLo, gapHi;
-                getLoopGap(i, gapLo, gapHi);
-                bool inGap = theta > gapLo && theta < gapHi;
+                bool inGap;
+                bool nearOpening;
+                if (getLoopType(i) == LoopType::QuarterPipe) {
+                    // Only the bottom-right quarter of the circle is solid; the wall above it is not catchable
+                    inGap = theta < 0.0f || theta > PI / 2;
+                    nearOpening = inGap;
+                } else {
+                    float gapLo, gapHi;
+                    getLoopGap(i, gapLo, gapHi);
+                    inGap = theta > gapLo && theta < gapHi;
+                    // Widened test: a diagonal ramp jump usually clips the arc just beside the opening
+                    nearOpening = theta > gapLo - LOOP_ENTRY_TOLERANCE && theta < gapHi + LOOP_ENTRY_TOLERANCE;
+                }
 
                 if (!wasInside) {
-                    // Widened test: a diagonal ramp jump usually clips the arc just beside the opening
-                    if (theta > gapLo - LOOP_ENTRY_TOLERANCE && theta < gapHi + LOOP_ENTRY_TOLERANCE) {
+                    if (nearOpening) {
                         bike.loopArmed = true;
                         bike.loopIndex = i;
                     }
                 } else if (bike.loopArmed && bike.loopIndex == i && !inGap) {
                     bike.loopArmed = false;
-                    if (bike.vx > 0.0f) {
+                    // Moving right, or moving forward along the wall (e.g. launched up-left off a quarter pipe lip)
+                    if (bike.vx > 0.0f || bike.vx * cosf(theta) - bike.vy * sinf(theta) > 0.0f) {
                         if (theta < 0.0f) theta += 2.0f * PI;
                         bike.vx = sqrtf(bike.vx * bike.vx + bike.vy * bike.vy);
                         bike.vy = 0.0f;
@@ -511,34 +571,77 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             float cx = pgm_read_word(&track1_loops[bike.loopIndex].x);
             float cy = (int8_t)pgm_read_byte(&track1_loops[bike.loopIndex].y);
             float r  = pgm_read_byte(&track1_loops[bike.loopIndex].radius);
-            float s = sinf(bike.loopTheta);
-            float c = cosf(bike.loopTheta);
+            bool quarterPipe = getLoopType(bike.loopIndex) == LoopType::QuarterPipe;
             const float g = GRAVITY * LOOP_GRAVITY_SCALE;
-            float gapLo, gapHi;
-            getLoopGap(bike.loopIndex, gapLo, gapHi);
+
+            // Quarter pipes: loopTheta * r is distance along curve + wall + lip. Loops: loopTheta is the angle.
+            auto pose = [&](float theta, float& dx, float& dy, float& dir) {
+                if (quarterPipe) {
+                    quarterPipePose(r, theta * r, dx, dy, dir);
+                } else {
+                    dir = theta;
+                    dx = r * sinf(theta);
+                    dy = r * cosf(theta);
+                }
+            };
+
+            float exitTheta;
+            if (quarterPipe) {
+                exitTheta = PI / 2 + (float)(QP_WALL_LEN + QP_LIP_LEN) / r;
+            } else {
+                float gapLo, gapHi;
+                getLoopGap(bike.loopIndex, gapLo, gapHi);
+                exitTheta = 2.0f * PI + gapLo;
+            }
+
+            float dx, dy, dir;
+            pose(bike.loopTheta, dx, dy, dir);
+            float s = sinf(dir);
+            float c = cosf(dir);
 
             if (arduboy.pressed(A_BUTTON)) bike.vx += BASE_ACCEL;
             // Gravity slows the climb and speeds up the descent; no DRAG here or loops become impossible
             bike.vx -= g * s;
 
-            // Track can no longer hold the bike (too slow), or it has reached the opening: fly off
-            bool tooSlow = bike.vx <= 0.0f || (bike.vx * bike.vx) / r + g * c < 0.0f;
-            if (tooSlow || bike.loopTheta >= 2.0f * PI + gapLo) {
+            // Track can no longer hold the bike (too slow), or it has reached the opening: fly off.
+            // Quarter pipes never drop the bike; it rolls back down instead.
+            bool tooSlow = !quarterPipe && (bike.vx <= 0.0f || (bike.vx * bike.vx) / r + g * c < 0.0f);
+            if (tooSlow || bike.loopTheta >= exitTheta) {
+                if (!tooSlow) {
+                    // Snap to the exit point so the launch direction is exact
+                    pose(exitTheta, dx, dy, dir);
+                    s = sinf(dir);
+                    c = cosf(dir);
+                    bike.x = cx + dx;
+                    bike.y = cy + dy;
+                }
                 float speed = bike.vx;
                 bike.vx = speed * c;
                 bike.vy = -speed * s;
                 bike.angularVel = 0.0f;
                 bike.loopArmed = false;
-                bike.loopLocked = true;
+                bike.loopLocked = !quarterPipe; // A quarter pipe launch must still be able to catch the loop above
                 bike.state = RiderState::Airborne;
                 break;
             }
 
             bike.loopTheta += bike.vx / r;
 
-            bike.x = cx + r * sinf(bike.loopTheta);
-            bike.y = cy + r * cosf(bike.loopTheta);
-            bike.angle = bike.loopTheta * (8.0f / PI); // Tangent direction on the 16-step dial
+            if (bike.loopTheta <= 0.0f) {
+                // Rolled back off the bottom end of a quarter pipe: drop off moving left
+                bike.x = cx;
+                bike.y = cy + r;
+                bike.vy = 0.0f;
+                bike.angle = 0.0f;
+                bike.loopLocked = true;
+                bike.state = RiderState::Airborne;
+                break;
+            }
+
+            pose(bike.loopTheta, dx, dy, dir);
+            bike.x = cx + dx;
+            bike.y = cy + dy;
+            bike.angle = dir * (8.0f / PI); // Travel direction on the 16-step dial
             break;
         }
     }
@@ -668,6 +771,32 @@ void drawOpenCircle(int16_t x0, int16_t y0, int16_t r, float lo, float hi) {
     }
 }
 
+// Bottom-right quarter of a midpoint circle (from the bottom point to the right side)
+void drawQuarterArc(int16_t x0, int16_t y0, int16_t r) {
+    int16_t f = 1 - r;
+    int16_t ddx = 1;
+    int16_t ddy = -2 * r;
+    int16_t x = 0;
+    int16_t y = r;
+
+    arduboy.drawPixel(x0, y0 + r, WHITE);
+    arduboy.drawPixel(x0 + r, y0, WHITE);
+
+    while (x < y) {
+        if (f >= 0) {
+            y--;
+            ddy += 2;
+            f += ddy;
+        }
+        x++;
+        ddx += 2;
+        f += ddx;
+
+        arduboy.drawPixel(x0 + x, y0 + y, WHITE);
+        arduboy.drawPixel(x0 + y, y0 + x, WHITE);
+    }
+}
+
 void drawLoops(float cameraX, float cameraY) {
     for (uint8_t i = 0; i < TRACK1_LOOP_COUNT; i++) {
         int16_t r = pgm_read_byte(&track1_loops[i].radius);
@@ -676,29 +805,60 @@ void drawLoops(float cameraX, float cameraY) {
         int16_t sx = (int16_t)(cx - cameraX);
         if (sx + outer < 0 || sx - outer > 127) continue;
         int16_t sy = (int16_t)((int8_t)pgm_read_byte(&track1_loops[i].y) - cameraY);
+        LoopType type = getLoopType(i);
+
+        if (type == LoopType::QuarterPipe) {
+            int16_t lipDx = (int16_t)(QP_LIP_LEN * sinf(QP_LIP_ANGLE) + 0.5f);
+            int16_t lipDy = (int16_t)(QP_LIP_LEN * cosf(QP_LIP_ANGLE) + 0.5f);
+            int16_t wallTop = sy - QP_WALL_LEN;
+            // Riding surface (curve, wall, lip) and a parallel outer edge, joined by end caps
+            drawQuarterArc(sx, sy, r);
+            arduboy.drawFastVLine(sx + r, wallTop, QP_WALL_LEN + 1, WHITE);
+            arduboy.drawLine(sx + r, wallTop, sx + r - lipDx, wallTop - lipDy, WHITE);
+            drawQuarterArc(sx, sy, outer);
+            arduboy.drawFastVLine(sx + outer, wallTop, QP_WALL_LEN + 1, WHITE);
+            arduboy.drawLine(sx + outer, wallTop, sx + outer - lipDx, wallTop - lipDy, WHITE);
+            arduboy.drawFastVLine(sx, sy + r, LOOP_FRAME_PAD + 1, WHITE);
+            arduboy.drawFastHLine(sx + r - lipDx, wallTop - lipDy, LOOP_FRAME_PAD + 1, WHITE);
+            continue;
+        }
 
         float gapLo, gapHi;
         getLoopGap(i, gapLo, gapHi);
-        int16_t leftDx  = (int16_t)(r * sinf(gapLo));
-        int16_t leftDy  = (int16_t)(r * cosf(gapLo));
-        int16_t rightDx = (int16_t)(r * sinf(gapHi));
-        int16_t rightDy = (int16_t)(r * cosf(gapHi));
-        bool tilted = (LoopType)pgm_read_byte(&track1_loops[i].type) == LoopType::Tilted;
-        int16_t cut = tilted ? LOOP_FRAME_CHAMFER : 0;
+        int16_t loDx = (int16_t)(r * sinf(gapLo));
+        int16_t loDy = (int16_t)(r * cosf(gapLo));
+        int16_t hiDx = (int16_t)(r * sinf(gapHi));
+        int16_t hiDy = (int16_t)(r * cosf(gapHi));
+        int16_t cut = (type == LoopType::Standard) ? 0 : LOOP_FRAME_CHAMFER;
+        int16_t left = sx - outer;
         int16_t top = sy - outer;
 
         drawOpenCircle(sx, sy, r, gapLo, gapHi);
 
+        if (type == LoopType::Side) {
+            // C frame: chamfered left corners, long top arm, short bottom arm ending at the circle
+            int16_t bottom = sy + outer;
+            arduboy.drawFastHLine(left + cut, top, 2 * outer - cut + 1, WHITE);
+            arduboy.drawFastVLine(sx + outer, top, outer + hiDy + 1, WHITE);
+            arduboy.drawFastHLine(sx + hiDx, sy + hiDy, outer - hiDx + 1, WHITE);
+            arduboy.drawLine(left, top + cut, left + cut, top, WHITE);
+            arduboy.drawFastVLine(left, top + cut, 2 * (outer - cut) + 1, WHITE);
+            arduboy.drawLine(left, bottom - cut, left + cut, bottom, WHITE);
+            arduboy.drawFastHLine(left + cut, bottom, outer - cut + loDx + 1, WHITE);
+            arduboy.drawFastVLine(sx + loDx, sy + loDy, outer - loDy + 1, WHITE);
+            continue;
+        }
+
         // Frame: top bar (chamfered corners on Tilted), side pillars, and feet meeting the circle's open ends
-        arduboy.drawFastHLine(sx - outer + cut, top, 2 * (outer - cut) + 1, WHITE);
+        arduboy.drawFastHLine(left + cut, top, 2 * (outer - cut) + 1, WHITE);
         if (cut > 0) {
-            arduboy.drawLine(sx - outer, top + cut, sx - outer + cut, top, WHITE);
+            arduboy.drawLine(left, top + cut, left + cut, top, WHITE);
             arduboy.drawLine(sx + outer - cut, top, sx + outer, top + cut, WHITE);
         }
-        arduboy.drawFastVLine(sx - outer, top + cut, outer - cut + leftDy + 1, WHITE);
-        arduboy.drawFastVLine(sx + outer, top + cut, outer - cut + rightDy + 1, WHITE);
-        arduboy.drawFastHLine(sx - outer, sy + leftDy, outer + leftDx + 1, WHITE);
-        arduboy.drawFastHLine(sx + rightDx, sy + rightDy, outer - rightDx + 1, WHITE);
+        arduboy.drawFastVLine(left, top + cut, outer - cut + loDy + 1, WHITE);
+        arduboy.drawFastVLine(sx + outer, top + cut, outer - cut + hiDy + 1, WHITE);
+        arduboy.drawFastHLine(left, sy + loDy, outer + loDx + 1, WHITE);
+        arduboy.drawFastHLine(sx + hiDx, sy + hiDy, outer - hiDx + 1, WHITE);
     }
 }
 
@@ -765,8 +925,8 @@ void loop() {
     float liftX = 0.0f;
     float liftY = BIKE_Y_OFFSET;
     if (playerBike.state == RiderState::Looping) {
-        liftX = sinf(playerBike.loopTheta) * BIKE_Y_OFFSET;
-        liftY = cosf(playerBike.loopTheta) * BIKE_Y_OFFSET;
+        liftX = sinf(playerBike.angle * (PI / 8.0f)) * BIKE_Y_OFFSET;
+        liftY = cosf(playerBike.angle * (PI / 8.0f)) * BIKE_Y_OFFSET;
     }
 
     // Offset the 16x16 sprite by -8 so it renders perfectly centered on the coordinate
