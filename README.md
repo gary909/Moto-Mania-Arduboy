@@ -1,5 +1,9 @@
 "# Moto-Mania-Arduboy"
 
+v0.27: added half loop up jump
+
+v0.26: added alt loop de loop
+
 v0.25: added loop"
 
 
