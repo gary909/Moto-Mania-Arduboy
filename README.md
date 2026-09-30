@@ -1,5 +1,7 @@
 "# Moto-Mania-Arduboy"
 
+v0.28: added verticle wall and vert loop - untested
+
 v0.27: added half loop up jump
 
 v0.26: added alt loop de loop
