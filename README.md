@@ -1,5 +1,11 @@
 "# Moto-Mania-Arduboy"
 
+v0.25: added loop"
+
+
+<img width="320" height="209" alt="VID_20260930_210156600-ezgif com-optimize" src="https://github.com/user-attachments/assets/54852e7b-f8c1-4f8a-80ff-92284bcb5d00" />
+
+
 v0.24: added smoke puff to start takeoff"
 
 
