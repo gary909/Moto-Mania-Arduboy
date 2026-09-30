@@ -11,7 +11,8 @@ Arduboy2 arduboy;
 enum class RiderState : uint8_t {
     Grounded,
     Airborne,
-    Crashing
+    Crashing,
+    Looping
 };
 
 struct Bike {
@@ -30,6 +31,10 @@ struct Bike {
     uint8_t accelSmokeTimer = 0; // Timer for standing start acceleration smoke effect
     uint8_t crashTimer = 0;
 
+    float loopTheta = 0.0f; // Progress around the current loop in radians (0 = bottom, PI = top)
+    uint8_t loopIndex = 0;
+    bool loopArmed = false; // True once the bike has jumped in through the loop's bottom opening
+
     RiderState state = RiderState::Grounded;
 };
 
@@ -37,6 +42,12 @@ struct Item {
     float x;
     float y;
     bool active;
+};
+
+struct Loop {
+    uint16_t x;      // Center X in world space
+    int8_t y;        // Center Y in world space (negative = above the top of the default screen)
+    uint8_t radius;
 };
 
 // -------------------------------------------------------------
@@ -52,6 +63,9 @@ constexpr float WHEELIE_RISE_SPEED = 0.12f; // Smooth upward rotation speed per 
 constexpr float WHEELIE_FALL_SPEED = 0.20f; // Recovery speed when releasing wheelie
 constexpr float MAX_WHEELIE_THRESHOLD = 3.6f; // Pitch threshold before tipping backward & crashing
 constexpr int8_t BIKE_Y_OFFSET = 5; // Height offset above ground line for visual clarity and bottom-edge clipping safety
+constexpr float LOOP_GAP_HALF = 0.7f; // Half-angle (radians) of the open bottom of each loop
+constexpr int16_t LOOP_FRAME_PAD = 4; // Visual spacing between the loop circle and its outer box frame
+constexpr float LOOP_GRAVITY_SCALE = 0.5f; // Softer gravity inside loops for arcade feel; raise to make loops harder
 
 // Global Game Objects
 Bike playerBike;
@@ -156,6 +170,12 @@ const uint8_t track1_heights[] PROGMEM = {
 const uint16_t TRACK1_LENGTH_SAMPLES = sizeof(track1_heights) / sizeof(track1_heights[0]);
 const float TRACK1_MAX_X = (TRACK1_LENGTH_SAMPLES - 1) * TERRAIN_STEP_X;
 
+// Floating loops: reached by a nitro + UP boosted jump off the ramp before them
+const Loop track1_loops[] PROGMEM = {
+    { 450, -16, 28 },
+};
+constexpr uint8_t TRACK1_LOOP_COUNT = sizeof(track1_loops) / sizeof(track1_loops[0]);
+
 // -------------------------------------------------------------
 // 5. PROGMEM LOOKUP FUNCTIONS
 // -------------------------------------------------------------
@@ -236,6 +256,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // -------------------------------------------------------------
         case RiderState::Grounded: {
             bike.y = groundHeightAtX;
+            bike.loopArmed = false;
 
             // Progressive wheelie control with tipping/crash check
             if (arduboy.pressed(LEFT_BUTTON)) {
@@ -339,6 +360,45 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.x += bike.vx;
             bike.y += bike.vy;
 
+            // Loop capture: arm when rising into the lower half, attach when hitting the inner wall
+            for (uint8_t i = 0; i < TRACK1_LOOP_COUNT; i++) {
+                float cx = pgm_read_word(&track1_loops[i].x);
+                float cy = (int8_t)pgm_read_byte(&track1_loops[i].y);
+                float r  = pgm_read_byte(&track1_loops[i].radius);
+                float dx = bike.x - cx;
+                float dy = bike.y - cy;
+                float pdx = dx - bike.vx;
+                float pdy = dy - bike.vy;
+                bool wasInside = (pdx * pdx + pdy * pdy) < r * r;
+                bool isInside  = (dx * dx + dy * dy) < r * r;
+                if (wasInside == isInside) continue;
+
+                float theta = atan2f(dx, dy); // 0 = bottom of the loop
+                bool inGap = fabsf(theta) < LOOP_GAP_HALF;
+
+                if (!wasInside) {
+                    // Not a strict gap test: a diagonal ramp jump usually clips the arc just beside the opening
+                    if (bike.vy < 0.0f && fabsf(theta) < PI / 2) {
+                        bike.loopArmed = true;
+                        bike.loopIndex = i;
+                    }
+                } else if (bike.loopArmed && bike.loopIndex == i && !inGap) {
+                    bike.loopArmed = false;
+                    if (bike.vx > 0.0f) {
+                        if (theta < 0.0f) theta += 2.0f * PI;
+                        bike.vx = sqrtf(bike.vx * bike.vx + bike.vy * bike.vy);
+                        bike.vy = 0.0f;
+                        bike.loopTheta = theta;
+                        bike.x = cx + r * sinf(theta);
+                        bike.y = cy + r * cosf(theta);
+                        bike.angle = theta * (8.0f / PI);
+                        bike.angularVel = 0.0f;
+                        bike.state = RiderState::Looping;
+                        return;
+                    }
+                }
+            }
+
             // Handle track wrap-around in mid-air
             if (bike.x > TRACK1_MAX_X - 16) {
                 bike.x = 0;
@@ -393,6 +453,41 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                 bike.vy = 0.0f;
                 bike.state = RiderState::Grounded;
             }
+            break;
+        }
+
+        // -------------------------------------------------------------
+        // 4. LOOPING STATE (bike.vx is reused as speed along the loop)
+        // -------------------------------------------------------------
+        case RiderState::Looping: {
+            float cx = pgm_read_word(&track1_loops[bike.loopIndex].x);
+            float cy = (int8_t)pgm_read_byte(&track1_loops[bike.loopIndex].y);
+            float r  = pgm_read_byte(&track1_loops[bike.loopIndex].radius);
+            float s = sinf(bike.loopTheta);
+            float c = cosf(bike.loopTheta);
+            const float g = GRAVITY * LOOP_GRAVITY_SCALE;
+
+            if (arduboy.pressed(A_BUTTON)) bike.vx += BASE_ACCEL;
+            // Gravity slows the climb and speeds up the descent; no DRAG here or loops become impossible
+            bike.vx -= g * s;
+
+            // Track can no longer hold the bike (too slow), or it has reached the bottom opening: fly off
+            bool tooSlow = bike.vx <= 0.0f || (bike.vx * bike.vx) / r + g * c < 0.0f;
+            if (tooSlow || bike.loopTheta >= 2.0f * PI - LOOP_GAP_HALF) {
+                float speed = bike.vx;
+                bike.vx = speed * c;
+                bike.vy = -speed * s;
+                bike.angularVel = 0.0f;
+                bike.loopArmed = false;
+                bike.state = RiderState::Airborne;
+                break;
+            }
+
+            bike.loopTheta += bike.vx / r;
+
+            bike.x = cx + r * sinf(bike.loopTheta);
+            bike.y = cy + r * cosf(bike.loopTheta);
+            bike.angle = bike.loopTheta * (8.0f / PI); // Tangent direction on the 16-step dial
             break;
         }
     }
@@ -481,6 +576,62 @@ void drawTerrain(float cameraX, float cameraY) {
     }
 }
 
+// Midpoint circle that skips pixels below maxDy, leaving the bottom of the loop open
+void drawOpenCircle(int16_t x0, int16_t y0, int16_t r, int16_t maxDy) {
+    auto plot = [&](int16_t dx, int16_t dy) {
+        if (dy <= maxDy) arduboy.drawPixel(x0 + dx, y0 + dy, WHITE);
+    };
+
+    int16_t f = 1 - r;
+    int16_t ddx = 1;
+    int16_t ddy = -2 * r;
+    int16_t x = 0;
+    int16_t y = r;
+
+    plot(0, r);
+    plot(0, -r);
+    plot(r, 0);
+    plot(-r, 0);
+
+    while (x < y) {
+        if (f >= 0) {
+            y--;
+            ddy += 2;
+            f += ddy;
+        }
+        x++;
+        ddx += 2;
+        f += ddx;
+
+        plot(x, y);   plot(-x, y);
+        plot(x, -y);  plot(-x, -y);
+        plot(y, x);   plot(-y, x);
+        plot(y, -x);  plot(-y, -x);
+    }
+}
+
+void drawLoops(float cameraX, float cameraY) {
+    for (uint8_t i = 0; i < TRACK1_LOOP_COUNT; i++) {
+        int16_t r = pgm_read_byte(&track1_loops[i].radius);
+        float cx = pgm_read_word(&track1_loops[i].x);
+        int16_t outer = r + LOOP_FRAME_PAD;
+        int16_t sx = (int16_t)(cx - cameraX);
+        if (sx + outer < 0 || sx - outer > 127) continue;
+        int16_t sy = (int16_t)((int8_t)pgm_read_byte(&track1_loops[i].y) - cameraY);
+        int16_t gapDy = (int16_t)(r * cosf(LOOP_GAP_HALF));
+        int16_t gapDx = (int16_t)(r * sinf(LOOP_GAP_HALF));
+
+        drawOpenCircle(sx, sy, r, gapDy);
+
+        // Box frame: top bar, side pillars, and inward feet meeting the circle's open ends
+        arduboy.drawFastHLine(sx - outer, sy - outer, 2 * outer + 1, WHITE);
+        arduboy.drawFastVLine(sx - outer, sy - outer, outer + gapDy + 1, WHITE);
+        arduboy.drawFastVLine(sx + outer, sy - outer, outer + gapDy + 1, WHITE);
+        arduboy.drawFastHLine(sx - outer, sy + gapDy, outer - gapDx + 1, WHITE);
+        arduboy.drawFastHLine(sx + gapDx, sy + gapDy, outer - gapDx + 1, WHITE);
+    }
+}
+
 // -------------------------------------------------------------
 // 8. ARDUINO SETUP & LOOP
 // -------------------------------------------------------------
@@ -516,15 +667,24 @@ void loop() {
     }
 
     drawTerrain(cameraX, cameraY);
+    drawLoops(cameraX, cameraY);
     drawItems(cameraX, cameraY);
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
     int16_t bikeScreenY = (int16_t)(playerBike.y - cameraY); // Subtract cameraY from the bike's screen Y
     
-    // Offset the 16x16 sprite by -8 so it renders perfectly centered on the coordinate
     // Apply BIKE_Y_OFFSET to lift the sprite visually above the terrain line
-    int16_t renderX = bikeScreenX - 8;
-    int16_t renderY = bikeScreenY - 8 - BIKE_Y_OFFSET;
+    // (inside a loop, the lift points toward the loop center instead of straight up)
+    float liftX = 0.0f;
+    float liftY = BIKE_Y_OFFSET;
+    if (playerBike.state == RiderState::Looping) {
+        liftX = sinf(playerBike.loopTheta) * BIKE_Y_OFFSET;
+        liftY = cosf(playerBike.loopTheta) * BIKE_Y_OFFSET;
+    }
+
+    // Offset the 16x16 sprite by -8 so it renders perfectly centered on the coordinate
+    int16_t renderX = bikeScreenX - 8 - (int16_t)liftX;
+    int16_t renderY = bikeScreenY - 8 - (int16_t)liftY;
 
     // Determine whether to play the 2-frame static idle animation or active rotation frames
     const unsigned char* activeBitmap;
@@ -549,8 +709,8 @@ void loop() {
         
         // Calculate offset 10 pixels directly behind the visual center of the motorbike
         const float dist = 10.0f;
-        int16_t smokeX = (int16_t)(bikeScreenX - cosf(rad) * dist - 4.0f);
-        int16_t smokeY = (int16_t)(bikeScreenY - BIKE_Y_OFFSET + sinf(rad) * dist - 4.0f);
+        int16_t smokeX = (int16_t)(bikeScreenX - liftX - cosf(rad) * dist - 4.0f);
+        int16_t smokeY = (int16_t)(bikeScreenY - liftY + sinf(rad) * dist - 4.0f);
 
         arduboy.drawBitmap(smokeX, smokeY, epd_bitmap_smoke, 8, 8, WHITE);
     }
