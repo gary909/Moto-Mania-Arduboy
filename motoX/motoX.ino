@@ -176,6 +176,11 @@ const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61, // Flat middle (184 - 240px)
     53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
     61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
+    // Arch outer surface (starts at x=1440); must stay in sync with ARCH_INNER below
+    ,60, 58, 55, 50, 43, 33, 23,    // Curved quarter-pipe face
+    21, 21, 21, 21, 21, 21, 21, 21, // Flat top
+    29, 37, 45, 53, 61,             // Straight back slope
+    61, 61, 61, 61, 61, 61, 61, 61  // Flat run-out
 };
 
 const uint16_t TRACK1_LENGTH_SAMPLES = sizeof(track1_heights) / sizeof(track1_heights[0]);
@@ -187,6 +192,23 @@ const Loop track1_loops[] PROGMEM = {
     { 826, -16, 28, LoopType::Tilted },
 };
 constexpr uint8_t TRACK1_LOOP_COUNT = sizeof(track1_loops) / sizeof(track1_loops[0]);
+
+// Arches: the rideable outer surface lives in track1_heights; only the hollow inner edge is drawn from here
+struct ArchPoint {
+    uint8_t x; // Offset from the arch's start X
+    int8_t y;  // Offset from the ground height at the arch's start X
+};
+
+const ArchPoint ARCH_INNER[] PROGMEM = {
+    { 36, 0 }, { 50, -16 }, { 56, -26 }, { 60, -34 }, // Inside of the curved face
+    { 118, -34 },                                     // Underside of the top
+    { 152, 0 }                                        // Inside of the back slope
+};
+constexpr uint8_t ARCH_INNER_COUNT = sizeof(ARCH_INNER) / sizeof(ARCH_INNER[0]);
+constexpr int16_t ARCH_WIDTH = 160;
+
+const uint16_t track1_arches[] PROGMEM = { 1440 };
+constexpr uint8_t TRACK1_ARCH_COUNT = sizeof(track1_arches) / sizeof(track1_arches[0]);
 
 // -------------------------------------------------------------
 // 5. PROGMEM LOOKUP FUNCTIONS
@@ -680,6 +702,22 @@ void drawLoops(float cameraX, float cameraY) {
     }
 }
 
+void drawArches(float cameraX, float cameraY) {
+    for (uint8_t i = 0; i < TRACK1_ARCH_COUNT; i++) {
+        float ax = pgm_read_word(&track1_arches[i]);
+        int16_t sx = (int16_t)(ax - cameraX);
+        if (sx + ARCH_WIDTH < 0 || sx > 127) continue;
+        int16_t sy = (int16_t)(getGroundHeight(ax) - cameraY);
+
+        for (uint8_t p = 0; p + 1 < ARCH_INNER_COUNT; p++) {
+            arduboy.drawLine(
+                sx + pgm_read_byte(&ARCH_INNER[p].x),     sy + (int8_t)pgm_read_byte(&ARCH_INNER[p].y),
+                sx + pgm_read_byte(&ARCH_INNER[p + 1].x), sy + (int8_t)pgm_read_byte(&ARCH_INNER[p + 1].y),
+                WHITE);
+        }
+    }
+}
+
 // -------------------------------------------------------------
 // 8. ARDUINO SETUP & LOOP
 // -------------------------------------------------------------
@@ -716,6 +754,7 @@ void loop() {
 
     drawTerrain(cameraX, cameraY);
     drawLoops(cameraX, cameraY);
+    drawArches(cameraX, cameraY);
     drawItems(cameraX, cameraY);
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
