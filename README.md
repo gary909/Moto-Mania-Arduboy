@@ -1,5 +1,33 @@
 "# Moto-Mania-Arduboy"
 
+TO DO
+
+Add small followers
+
+add nitro icons 
+
+Add time pick ups
+
+Add Speed pick ups
+
+Add time count down
+
+Add Rocks
+
+Add Dirt slow down Area
+
+Add Start/End Ramp
+
+Start screen
+
+Options Screen
+
+
+
+
+
+_________________________________
+
 v0.28: added verticle wall and vert loop - untested
 
 v0.27: added half loop up jump
