@@ -85,6 +85,10 @@ constexpr int16_t LOOP_FRAME_PAD = 4; // Visual spacing between the loop circle 
 constexpr int16_t LOOP_FRAME_CHAMFER = 10; // Size of the cut corners on Tilted and Side loop frames
 constexpr float LOOP_GRAVITY_SCALE = 0.5f; // Softer gravity inside loops for arcade feel; raise to make loops harder
 
+// HUD vertical position (the whole info bar sits at the very bottom of the 64px-tall screen)
+constexpr int16_t HUD_Y = 58;  // Top row of the 6px-tall HUD; bottom edge lands on row 63
+constexpr float COURSE_LIFT = 8.0f; // Raise the whole course so it clears the bottom HUD info bar
+
 // Nitro HUD (upright solid bars to the right of the "NTR" label)
 constexpr int16_t NITRO_X       = 79;  // "NTR" label, shifted right of center
 constexpr int16_t NITRO_BAR_X   = 92;  // First bar, right after the label (79 + 12px label + 1px gap)
@@ -95,7 +99,6 @@ constexpr uint8_t NITRO_BAR_PITCH = 4; // 3px bar + 1px gap
 // Speed HUD ("SPD" label + horizontal gauge, replacing the old "SPD:x.y" number)
 constexpr int16_t SPD_TEXT_X    = 0;    // "SPD" label, top-left
 constexpr int16_t SPEED_BAR_X   = 14;   // Gauge starts just right of "SPD" (0 + 12px text + 2px gap)
-constexpr int16_t SPEED_BAR_Y   = 0;
 constexpr int16_t SPEED_BAR_W   = 17;   // Gauge width; ends at x=30, leaving room for the "TMR" readout
 constexpr int16_t SPEED_BAR_H   = 6;    // Height, matches the nitro bars
 constexpr float   SPEED_BAR_MAX = 2.0f; // vx that fills the gauge (flat-top-speed ~1.83; nitro pegs it)
@@ -927,8 +930,8 @@ void loop() {
     // Calculate vertical camera position. 
     // This keeps the bike at least 24 pixels from the top of the screen when launching high into the air.
     float cameraY = playerBike.y - 24.0f;
-    if (cameraY > 0.0f) {
-        cameraY = 0.0f; // Clamps the camera so it doesn't push the ground beneath the standard level
+    if (cameraY > COURSE_LIFT) {
+        cameraY = COURSE_LIFT; // Clamps the camera so the course stays lifted above the bottom HUD
     }
 
     drawTerrain(cameraX, cameraY);
@@ -985,24 +988,24 @@ void loop() {
     arduboy.drawBitmap(renderX, renderY, activeBitmap + (activeFrameIndex * 32), 16, 16, WHITE);
 
     // Ultra-compact 3x5 HUD rendering (UI stays absolute, unaffected by camera)
-    drawTinyString(SPD_TEXT_X, 0, "SPD");
+    drawTinyString(SPD_TEXT_X, HUD_Y, "SPD");
 
     // Speed gauge: empty at rest, fills left-to-right as speed increases
     int16_t fill = (int16_t)(playerBike.vx / SPEED_BAR_MAX * (SPEED_BAR_W - 2));
     if (fill < 0) fill = 0;
     if (fill > SPEED_BAR_W - 2) fill = SPEED_BAR_W - 2;
-    arduboy.drawRect(SPEED_BAR_X, SPEED_BAR_Y, SPEED_BAR_W, SPEED_BAR_H, WHITE);   // fixed gauge frame
+    arduboy.drawRect(SPEED_BAR_X, HUD_Y, SPEED_BAR_W, SPEED_BAR_H, WHITE);   // fixed gauge frame
     if (fill > 0) {
-        arduboy.fillRect(SPEED_BAR_X + 1, SPEED_BAR_Y + 1, fill, SPEED_BAR_H - 2, WHITE); // fill grows with speed
+        arduboy.fillRect(SPEED_BAR_X + 1, HUD_Y + 1, fill, SPEED_BAR_H - 2, WHITE); // fill grows with speed
     }
 
-    drawTinyString(TMR_TEXT_X, 0, "TMR: 00");
+    drawTinyString(TMR_TEXT_X, HUD_Y, "TMR: 00");
 
-    drawTinyString(NITRO_X, 0, "NTR");
+    drawTinyString(NITRO_X, HUD_Y, "NTR");
     for (uint8_t i = 0; i < playerBike.nitros; i++) {
         int16_t x = NITRO_BAR_X + (int16_t)i * NITRO_BAR_PITCH;
         if (x >= WIDTH) break; // remaining bars are past the right edge
-        arduboy.fillRect(x, 0, NITRO_BAR_W, NITRO_BAR_H, WHITE);
+        arduboy.fillRect(x, HUD_Y, NITRO_BAR_W, NITRO_BAR_H, WHITE);
     }
 
     if (playerBike.state == RiderState::Crashing) {

@@ -26,6 +26,10 @@ Options Screen
 
 _________________________________
 
+v0.32: Moved info bar to bottom of screen
+
+v0.31: added non functioning countdown timer
+
 v0.30: added speed bar
 
 v0.29: added nitro icons - untested
