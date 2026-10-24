@@ -251,6 +251,14 @@ constexpr int16_t ARCH_WIDTH = 160;
 const uint16_t track1_arches[] PROGMEM = { 1440 };
 constexpr uint8_t TRACK1_ARCH_COUNT = sizeof(track1_arches) / sizeof(track1_arches[0]);
 
+// Flat mud patches: while grounded on these, the bike's speed is halved.
+// Keep patches entirely on flat (height 61) ground.
+struct MudPatch { uint16_t x1; uint16_t x2; };
+const MudPatch track1_mud[] PROGMEM = {
+    { 160, 216 }, // flat platform (height 61) shortly after the start
+};
+constexpr uint8_t TRACK1_MUD_COUNT = sizeof(track1_mud) / sizeof(track1_mud[0]);
+
 // -------------------------------------------------------------
 // 5. PROGMEM LOOKUP FUNCTIONS
 // -------------------------------------------------------------
@@ -280,6 +288,14 @@ float getGroundSlope(float worldX) {
                         (int8_t)pgm_read_byte(&track1_heights[sampleIndex]);
 
     return (float)heightDiff / (float)TERRAIN_STEP_X;
+}
+
+bool isOnMud(float worldX) {
+    for (uint8_t i = 0; i < TRACK1_MUD_COUNT; i++) {
+        if (worldX >= pgm_read_word(&track1_mud[i].x1) &&
+            worldX <= pgm_read_word(&track1_mud[i].x2)) return true;
+    }
+    return false;
 }
 
 LoopType getLoopType(uint8_t index) {
@@ -408,12 +424,15 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             float previousGroundY = getGroundHeight(bike.x - bike.vx);
             float actualVy = groundHeightAtX - previousGroundY;
 
+            float accel = BASE_ACCEL;
+            if (isOnMud(bike.x)) accel *= 0.5f; // mud: thrust halved -> top speed settles at half
+
             if (arduboy.pressed(A_BUTTON)) {
                 // Trigger standing start smoke effect if accelerating from a stop
                 if (bike.vx < 0.01f) {
                     bike.accelSmokeTimer = NITRO_FRAMES;
                 }
-                bike.vx += BASE_ACCEL;
+                bike.vx += accel;
             }
 
             bike.vx *= DRAG;
@@ -748,7 +767,10 @@ void drawTerrain(float cameraX, float cameraY) {
         int16_t y1 = (int16_t)(getGroundHeight(worldX) - cameraY);
         int16_t y2 = (int16_t)(getGroundHeight(worldX + 2) - cameraY);
         
-        arduboy.drawLine(screenX, y1, screenX + 2, y2, WHITE);
+        bool mud = isOnMud(worldX);
+        if (!mud || (screenX % 4 == 0)) {
+            arduboy.drawLine(screenX, y1, screenX + 2, y2, WHITE);
+        }
     }
 }
 
