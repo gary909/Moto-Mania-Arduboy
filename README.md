@@ -26,6 +26,8 @@ Options Screen
 
 _________________________________
 
+v0.30: added speed bar
+
 v0.29: added nitro icons - untested
 
 v0.28: added verticle wall and vert loop - untested

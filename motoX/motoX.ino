@@ -86,8 +86,8 @@ constexpr int16_t LOOP_FRAME_CHAMFER = 10; // Size of the cut corners on Tilted 
 constexpr float LOOP_GRAVITY_SCALE = 0.5f; // Softer gravity inside loops for arcade feel; raise to make loops harder
 
 // Nitro HUD (upright solid bars to the right of the "NTR" label)
-constexpr int16_t NITRO_X       = 64;  // "NTR" label, starting at the horizontal middle of the screen
-constexpr int16_t NITRO_BAR_X   = 77;  // First bar, right after the label (64 + 12px label + 1px gap)
+constexpr int16_t NITRO_X       = 79;  // "NTR" label, shifted right of center
+constexpr int16_t NITRO_BAR_X   = 92;  // First bar, right after the label (79 + 12px label + 1px gap)
 constexpr uint8_t NITRO_BAR_W   = 3;   // Bar width in pixels
 constexpr uint8_t NITRO_BAR_H   = 6;   // Bar height in pixels
 constexpr uint8_t NITRO_BAR_PITCH = 4; // 3px bar + 1px gap
@@ -96,9 +96,12 @@ constexpr uint8_t NITRO_BAR_PITCH = 4; // 3px bar + 1px gap
 constexpr int16_t SPD_TEXT_X    = 0;    // "SPD" label, top-left
 constexpr int16_t SPEED_BAR_X   = 14;   // Gauge starts just right of "SPD" (0 + 12px text + 2px gap)
 constexpr int16_t SPEED_BAR_Y   = 0;
-constexpr int16_t SPEED_BAR_W   = 40;   // Gauge width; ends at x=53, leaving a 10px gap before "NTR" (x=64)
+constexpr int16_t SPEED_BAR_W   = 17;   // Gauge width; ends at x=30, leaving room for the "TMR" readout
 constexpr int16_t SPEED_BAR_H   = 6;    // Height, matches the nitro bars
 constexpr float   SPEED_BAR_MAX = 2.0f; // vx that fills the gauge (flat-top-speed ~1.83; nitro pegs it)
+
+// Countdown timer HUD (static placeholder: not functional yet)
+constexpr int16_t TMR_TEXT_X = 42;  // "TMR: 00" sits between the speed gauge and "NTR" (x=77)
 
 // Global Game Objects
 Bike playerBike;
@@ -690,6 +693,7 @@ void drawTinyChar(int16_t x, int16_t y, char c, uint8_t color = WHITE) {
             case 'D': cols[0] = 0x1F; cols[1] = 0x11; cols[2] = 0x0E; break;
             case 'N': cols[0] = 0x1F; cols[1] = 0x02; cols[2] = 0x1F; break;
             case 'I': cols[0] = 0x01; cols[1] = 0x1F; cols[2] = 0x01; break;
+            case 'M': cols[0] = 0x1F; cols[1] = 0x04; cols[2] = 0x1F; break;
             case 'T': cols[0] = 0x01; cols[1] = 0x1F; cols[2] = 0x01; break;
             case 'R': cols[0] = 0x1F; cols[1] = 0x05; cols[2] = 0x1A; break;
             case 'O': cols[0] = 0x0E; cols[1] = 0x11; cols[2] = 0x0E; break;
@@ -991,6 +995,8 @@ void loop() {
     if (fill > 0) {
         arduboy.fillRect(SPEED_BAR_X + 1, SPEED_BAR_Y + 1, fill, SPEED_BAR_H - 2, WHITE); // fill grows with speed
     }
+
+    drawTinyString(TMR_TEXT_X, 0, "TMR: 00");
 
     drawTinyString(NITRO_X, 0, "NTR");
     for (uint8_t i = 0; i < playerBike.nitros; i++) {
