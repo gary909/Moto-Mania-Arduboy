@@ -92,6 +92,14 @@ constexpr uint8_t NITRO_BAR_W   = 3;   // Bar width in pixels
 constexpr uint8_t NITRO_BAR_H   = 6;   // Bar height in pixels
 constexpr uint8_t NITRO_BAR_PITCH = 4; // 3px bar + 1px gap
 
+// Speed HUD ("SPD" label + horizontal gauge, replacing the old "SPD:x.y" number)
+constexpr int16_t SPD_TEXT_X    = 0;    // "SPD" label, top-left
+constexpr int16_t SPEED_BAR_X   = 14;   // Gauge starts just right of "SPD" (0 + 12px text + 2px gap)
+constexpr int16_t SPEED_BAR_Y   = 0;
+constexpr int16_t SPEED_BAR_W   = 40;   // Gauge width; ends at x=53, leaving a 10px gap before "NTR" (x=64)
+constexpr int16_t SPEED_BAR_H   = 6;    // Height, matches the nitro bars
+constexpr float   SPEED_BAR_MAX = 2.0f; // vx that fills the gauge (flat-top-speed ~1.83; nitro pegs it)
+
 // Global Game Objects
 Bike playerBike;
 
@@ -973,9 +981,16 @@ void loop() {
     arduboy.drawBitmap(renderX, renderY, activeBitmap + (activeFrameIndex * 32), 16, 16, WHITE);
 
     // Ultra-compact 3x5 HUD rendering (UI stays absolute, unaffected by camera)
-    char hudBuffer[16];
-    snprintf(hudBuffer, sizeof(hudBuffer), "SPD:%d.%d", (int)playerBike.vx, (int)(playerBike.vx * 10) % 10);
-    drawTinyString(0, 0, hudBuffer);
+    drawTinyString(SPD_TEXT_X, 0, "SPD");
+
+    // Speed gauge: empty at rest, fills left-to-right as speed increases
+    int16_t fill = (int16_t)(playerBike.vx / SPEED_BAR_MAX * (SPEED_BAR_W - 2));
+    if (fill < 0) fill = 0;
+    if (fill > SPEED_BAR_W - 2) fill = SPEED_BAR_W - 2;
+    arduboy.drawRect(SPEED_BAR_X, SPEED_BAR_Y, SPEED_BAR_W, SPEED_BAR_H, WHITE);   // fixed gauge frame
+    if (fill > 0) {
+        arduboy.fillRect(SPEED_BAR_X + 1, SPEED_BAR_Y + 1, fill, SPEED_BAR_H - 2, WHITE); // fill grows with speed
+    }
 
     drawTinyString(NITRO_X, 0, "NTR");
     for (uint8_t i = 0; i < playerBike.nitros; i++) {
