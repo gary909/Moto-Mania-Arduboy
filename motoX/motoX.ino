@@ -85,6 +85,13 @@ constexpr int16_t LOOP_FRAME_PAD = 4; // Visual spacing between the loop circle 
 constexpr int16_t LOOP_FRAME_CHAMFER = 10; // Size of the cut corners on Tilted and Side loop frames
 constexpr float LOOP_GRAVITY_SCALE = 0.5f; // Softer gravity inside loops for arcade feel; raise to make loops harder
 
+// Nitro HUD (upright solid bars to the right of the "NITROS:" label)
+constexpr int16_t NITRO_X       = 30;  // "NITROS:" label, moved left of its previous 78 position
+constexpr int16_t NITRO_BAR_X   = 58;  // First bar, right after the label (30 + 27px label + 1px gap)
+constexpr uint8_t NITRO_BAR_W   = 3;   // Bar width in pixels
+constexpr uint8_t NITRO_BAR_H   = 6;   // Bar height in pixels
+constexpr uint8_t NITRO_BAR_PITCH = 4; // 3px bar + 1px gap
+
 // Global Game Objects
 Bike playerBike;
 
@@ -970,8 +977,12 @@ void loop() {
     snprintf(hudBuffer, sizeof(hudBuffer), "SPD:%d.%d", (int)playerBike.vx, (int)(playerBike.vx * 10) % 10);
     drawTinyString(0, 0, hudBuffer);
 
-    snprintf(hudBuffer, sizeof(hudBuffer), "NITROS:%d", playerBike.nitros);
-    drawTinyString(78, 0, hudBuffer);
+    drawTinyString(NITRO_X, 0, "NITROS:");
+    for (uint8_t i = 0; i < playerBike.nitros; i++) {
+        int16_t x = NITRO_BAR_X + (int16_t)i * NITRO_BAR_PITCH;
+        if (x >= WIDTH) break; // remaining bars are past the right edge
+        arduboy.fillRect(x, 0, NITRO_BAR_W, NITRO_BAR_H, WHITE);
+    }
 
     if (playerBike.state == RiderState::Crashing) {
         arduboy.setCursor(44, 20);

@@ -4,8 +4,6 @@ TO DO
 
 Add small followers
 
-add nitro icons 
-
 Add time pick ups
 
 Add Speed pick ups
@@ -27,6 +25,8 @@ Options Screen
 
 
 _________________________________
+
+v0.29: added nitro icons - untested
 
 v0.28: added verticle wall and vert loop - untested
 
