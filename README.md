@@ -28,6 +28,9 @@ _________________________________
 
 v0.32: Moved info bar to bottom of screen
 
+<img width="300" alt="IMG_20261024_165355888 (1)" src="https://github.com/user-attachments/assets/6413f8a3-4a73-49ea-8d5c-ce532b2e15ff" />
+
+
 v0.31: added non functioning countdown timer
 
 v0.30: added speed bar
