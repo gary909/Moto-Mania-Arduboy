@@ -26,7 +26,7 @@ Options Screen
 
 _________________________________
 
-v0.33: added mud patch - untested
+v0.33: added mud patch
 
 v0.32: Moved info bar to bottom of screen
 

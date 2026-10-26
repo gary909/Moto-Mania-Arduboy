@@ -255,7 +255,7 @@ constexpr uint8_t TRACK1_ARCH_COUNT = sizeof(track1_arches) / sizeof(track1_arch
 // Keep patches entirely on flat (height 61) ground.
 struct MudPatch { uint16_t x1; uint16_t x2; };
 const MudPatch track1_mud[] PROGMEM = {
-    { 160, 216 }, // flat platform (height 61) shortly after the start
+    { 40, 184 }, // entire flat start (height 61); the bike spawns here at x=16
 };
 constexpr uint8_t TRACK1_MUD_COUNT = sizeof(track1_mud) / sizeof(track1_mud[0]);
 
@@ -759,6 +759,15 @@ void drawItems(float cameraX, float cameraY) {
     }
 }
 
+// Deterministic pseudo-random 0..255 derived from a world X coordinate. Anchored in
+// world space so the dirt speckles stay put while scrolling and never flicker.
+uint8_t dirtHash(uint16_t x) {
+    x ^= (uint16_t)(x >> 7);
+    x = (uint16_t)(x * 0x9E37u);   // 40503: large odd multiplier mixes the low bits well
+    x ^= (uint16_t)(x >> 5);
+    return (uint8_t)x;
+}
+
 void drawTerrain(float cameraX, float cameraY) {
     for (int16_t screenX = 0; screenX < 128; screenX += 2) {
         float worldX = cameraX + screenX;
@@ -770,6 +779,20 @@ void drawTerrain(float cameraX, float cameraY) {
         bool mud = isOnMud(worldX);
         if (!mud || (screenX % 4 == 0)) {
             arduboy.drawLine(screenX, y1, screenX + 2, y2, WHITE);
+        }
+
+        // Scattered dirt speckles below mud patches so they read as loose ground
+        // rather than clean track. World-anchored hash keeps them stable (no flicker).
+        if (mud) {
+            uint8_t h = dirtHash((uint16_t)worldX);
+            if ((h & 0x07) < 3) {                                 // ~37% of columns get a speck
+                int16_t sy = y1 + 1 + (int16_t)((h >> 3) & 0x03); // 1..4px below the surface
+                if (sy < HUD_Y) arduboy.drawPixel(screenX, sy, WHITE);
+            }
+            if ((h & 0x3F) == 0x15) {                             // rare deeper speck for texture
+                int16_t sy = y1 + 2 + (int16_t)((h >> 6) & 0x01);
+                if (sy < HUD_Y) arduboy.drawPixel(screenX, sy, WHITE);
+            }
         }
     }
 }
