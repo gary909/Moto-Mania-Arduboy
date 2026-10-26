@@ -25,6 +25,7 @@ struct Bike {
     float angle = 0.0f;      // Stored as float so fractional mid-air rotation accumulates properly
     float angularVel = 0.0f; // Mid-air rotation speed
     float wheelieAngle = 0.0f; // Smooth grounded wheelie pitch offset
+    float airRotation = 0.0f; // Cumulative mid-air spin (16-step dial units) used to reward a full 360-degree flip
 
     uint8_t nitros = 3;
     uint8_t nitroTimer = 0; // Replaced nitroActive with a timer for sustained boosting
@@ -115,6 +116,23 @@ Item nitroItems[MAX_ITEMS] = {
     { 200.0f, 0.0f, true },
     { 320.0f, 0.0f, true }
 };
+
+// Follower bikes: awarded for a full 360-degree mid-air spin, then trail the player's recent path
+constexpr uint8_t MAX_FOLLOWERS = 3;
+constexpr uint8_t FOLLOWER_SPACING = 5; // Frames of delay between each follower in the chain
+constexpr uint8_t TRAIL_LEN = 64;       // Ring buffer size (must exceed MAX_FOLLOWERS * FOLLOWER_SPACING)
+
+struct TrailPoint {
+    int16_t x;
+    int16_t y;
+    uint8_t frame; // Which of the 16 rotation frames to draw (0..15)
+};
+
+uint8_t followerCount = 0;
+TrailPoint trail[TRAIL_LEN];
+uint8_t trailHead = 0; // Index of the next slot to write (most recent point is trailHead - 1)
+
+void addFollower(); // Forward declaration; called from updateBike() before its definition below
 
 // -------------------------------------------------------------
 // 3. SPRITE DATA (PROGMEM) 
@@ -390,6 +408,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.y = groundHeightAtX;
             bike.loopArmed = false;
             bike.loopLocked = false;
+            bike.airRotation = 0.0f; // A spin only counts within a single jump
 
             // Progressive wheelie control with tipping/crash check
             if (arduboy.pressed(LEFT_BUTTON)) {
@@ -491,6 +510,16 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             while (bike.angle >= 16.0f) bike.angle -= 16.0f;
             while (bike.angle < 0.0f)  bike.angle += 16.0f;
 
+            // Reward a full 360-degree rotation (forwards or backwards) with a follower bike
+            bike.airRotation += bike.angularVel;
+            if (bike.airRotation >= 16.0f) {
+                addFollower();
+                bike.airRotation -= 16.0f;
+            } else if (bike.airRotation <= -16.0f) {
+                addFollower();
+                bike.airRotation += 16.0f;
+            }
+
             bike.angularVel *= 0.60f;
             bike.vy += GRAVITY;
             bike.x += bike.vx;
@@ -541,6 +570,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
                         bike.y = cy + r * cosf(theta);
                         bike.angle = theta * (8.0f / PI);
                         bike.angularVel = 0.0f;
+                        bike.airRotation = 0.0f;
                         bike.state = RiderState::Looping;
                         return;
                     }
@@ -584,6 +614,8 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // -------------------------------------------------------------
         case RiderState::Crashing: {
             bike.wheelieAngle = 0.0f;
+            bike.airRotation = 0.0f;
+            followerCount = 0; // A crash costs any follower bikes
             if (bike.crashTimer > 0) {
                 bike.crashTimer--;
             } else {
@@ -946,6 +978,49 @@ void drawArches(float cameraX, float cameraY) {
 }
 
 // -------------------------------------------------------------
+// 7b. FOLLOWER BIKES (360-spin reward trail)
+// -------------------------------------------------------------
+void addFollower() {
+    if (followerCount < MAX_FOLLOWERS) {
+        followerCount++;
+    }
+}
+
+void recordTrail() {
+    trail[trailHead].x = (int16_t)playerBike.x;
+    trail[trailHead].y = (int16_t)playerBike.y;
+    trail[trailHead].frame = (uint8_t)playerBike.angle % 16;
+    trailHead = (trailHead + 1) % TRAIL_LEN;
+}
+
+// Half-scale 8x8 copy of the 16x16 rotation frame (samples every 2nd source pixel)
+void drawMiniBike(int16_t screenX, int16_t screenY, uint8_t frame) {
+    const unsigned char* src = motoXbike + ((uint16_t)frame * 32);
+    for (uint8_t dy = 0; dy < 8; dy++) {
+        uint8_t sy = dy * 2;
+        uint8_t page = sy >> 3;
+        uint8_t bitMask = 1 << (sy & 7);
+        for (uint8_t dx = 0; dx < 8; dx++) {
+            uint8_t col = pgm_read_byte(src + (dx * 2) + (page * 16));
+            if (col & bitMask) {
+                arduboy.drawPixel(screenX + dx, screenY + dy, WHITE);
+            }
+        }
+    }
+}
+
+void drawFollowers(float cameraX, float cameraY) {
+    for (uint8_t i = 0; i < followerCount; i++) {
+        int16_t stepsBack = (int16_t)FOLLOWER_SPACING * (i + 1);
+        int16_t idx = ((int16_t)trailHead - 1 - stepsBack + TRAIL_LEN) % TRAIL_LEN;
+        int16_t sx = trail[idx].x - (int16_t)cameraX;
+        int16_t sy = trail[idx].y - (int16_t)cameraY;
+        // Center the 8x8 mini bike on the contact point with the same lift as the player
+        drawMiniBike(sx - 4, sy - 4 - BIKE_Y_OFFSET, trail[idx].frame);
+    }
+}
+
+// -------------------------------------------------------------
 // 8. ARDUINO SETUP & LOOP
 // -------------------------------------------------------------
 void setup() {
@@ -968,6 +1043,7 @@ void loop() {
 
     updateBike(playerBike, currentGround, currentSlope);
     updateItems(playerBike);
+    recordTrail();
 
     float cameraX = playerBike.x - 32.0f;
     if (cameraX < 0) cameraX = 0;
@@ -983,6 +1059,7 @@ void loop() {
     drawLoops(cameraX, cameraY);
     drawArches(cameraX, cameraY);
     drawItems(cameraX, cameraY);
+    drawFollowers(cameraX, cameraY);
 
     int16_t bikeScreenX = (int16_t)(playerBike.x - cameraX);
     int16_t bikeScreenY = (int16_t)(playerBike.y - cameraY); // Subtract cameraY from the bike's screen Y

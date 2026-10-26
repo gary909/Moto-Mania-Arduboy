@@ -2,8 +2,6 @@
 
 TO DO
 
-Add small followers
-
 Add time pick ups
 
 Add Speed pick ups
@@ -25,6 +23,8 @@ Options Screen
 
 
 _________________________________
+
+v0.34: added 360-spin follower bikes
 
 v0.33: added mud patch
 
