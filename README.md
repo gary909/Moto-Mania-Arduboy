@@ -26,7 +26,7 @@ _________________________________
 
 v0.34: added 360-spin follower bikes
 
-<img width="320" height="195" alt="ezgif-optimized" src="https://github.com/user-attachments/assets/be86a7c3-93ab-41d4-af82-3dbac1c91990" />
+<img width="300" alt="ezgif-optimized" src="https://github.com/user-attachments/assets/be86a7c3-93ab-41d4-af82-3dbac1c91990" />
 
 
 v0.33: added mud patch
