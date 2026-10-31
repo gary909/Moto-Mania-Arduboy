@@ -1249,6 +1249,14 @@ void drawSelectorBox(int16_t glyphX, int16_t glyphY) {
     arduboy.drawRect(glyphX - 2, glyphY - 2, 9, 11, WHITE);
 }
 
+void drawConfirmedBox(int16_t glyphX, int16_t glyphY, char ch) {
+    arduboy.fillRect(glyphX - 2, glyphY - 2, 9, 11, WHITE);
+    arduboy.setTextColor(BLACK);
+    arduboy.setCursor(glyphX, glyphY);
+    arduboy.print(ch);
+    arduboy.setTextColor(WHITE);
+}
+
 void drawCourseSelectScreen() {
     drawCenteredText(8,  F("SELECT COURSE"));
     drawCenteredText(22, F("1 2 3 4 5 6 7"));
@@ -1259,6 +1267,9 @@ void drawCourseSelectScreen() {
         // Digits sit at x = 25, 37, 49, 61, 73, 85, 97 (the centred "1 2 3 4 5 6 7").
         drawSelectorBox(25 + (int16_t)selectedCourse * 12, 22);
     } else {
+        // Keep the locked-in course visible (filled/inverted) while choosing the level.
+        drawConfirmedBox(25 + (int16_t)selectedCourse * 12, 22, (char)('1' + selectedCourse));
+
         // Letters sit at x = 49, 61, 73 (the centred "A B C").
         drawSelectorBox(49 + (int16_t)selectedLevel * 12, 48);
     }
