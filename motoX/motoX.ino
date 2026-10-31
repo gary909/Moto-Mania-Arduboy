@@ -17,6 +17,12 @@ enum class RiderState : uint8_t {
     Looping
 };
 
+enum class GameState : uint8_t {
+    Title,
+    CourseSelect,
+    Playing
+};
+
 struct Bike {
     float x = 16.0f;
     float y = 61.0f;
@@ -111,6 +117,8 @@ constexpr int16_t TMR_TEXT_X = 42;  // "TMR: 00" sits between the speed gauge an
 
 // Global Game Objects
 Bike playerBike;
+
+GameState gameState = GameState::Title; // App flow: title -> course select -> playing
 
 constexpr uint8_t MAX_ITEMS = 3;
 Item nitroItems[MAX_ITEMS] = {
@@ -1144,6 +1152,73 @@ void drawTinyString(int16_t x, int16_t y, const char* str) {
     }
 }
 
+// -------------------------------------------------------------
+// 7a. TITLE & COURSE-SELECT SCREENS
+// -------------------------------------------------------------
+
+// Checkered border drawn as a continuous ring of alternating filled cells so the
+// checker pattern stays correct around the corners.
+void drawCheckeredBorder(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t cell) {
+    const int16_t cols = w / cell;
+    const int16_t rows = h / cell;
+    uint16_t i = 0;
+
+    // Top edge (includes the top-left and top-right corners)
+    for (int16_t c = 0; c < cols; c++) {
+        if ((i & 1) == 0) arduboy.fillRect(x + c * cell, y, cell, cell, WHITE);
+        i++;
+    }
+    // Right edge (skips the top-right corner, includes the bottom-right corner)
+    for (int16_t r = 1; r < rows; r++) {
+        if ((i & 1) == 0) arduboy.fillRect(x + w - cell, y + r * cell, cell, cell, WHITE);
+        i++;
+    }
+    // Bottom edge (skips the bottom-right corner, includes the bottom-left corner)
+    for (int16_t c = 1; c < cols; c++) {
+        if ((i & 1) == 0) arduboy.fillRect(x + w - cell - c * cell, y + h - cell, cell, cell, WHITE);
+        i++;
+    }
+    // Left edge (skips both corners)
+    for (int16_t r = 1; r < rows - 1; r++) {
+        if ((i & 1) == 0) arduboy.fillRect(x, y + h - cell - r * cell, cell, cell, WHITE);
+        i++;
+    }
+}
+
+// Center a flash (PROGMEM) string horizontally on the 128px screen using the default font.
+void drawCenteredText(int16_t y, const __FlashStringHelper* text, uint8_t size = 1) {
+    const char* p = reinterpret_cast<const char*>(text);
+    int16_t w = strlen_P(p) * 6 * size; // 6px per char at size 1 (5px glyph + 1px spacing)
+    arduboy.setTextSize(size);
+    arduboy.setCursor((WIDTH - w) / 2, y);
+    arduboy.print(text);
+    arduboy.setTextSize(1);
+}
+
+void drawTitleScreen() {
+    const int16_t boxX = 2;
+    const int16_t boxY = 4;
+    // Odd cell counts per edge (31 x 11) so the corners fill in and the
+    // checker pattern lines up vertically on both sides.
+    const int16_t boxW = 124;
+    const int16_t boxH = 44;
+
+    drawCheckeredBorder(boxX, boxY, boxW, boxH, 4);
+
+    drawCenteredText(boxY + 6,  F("MOTODROME"), 2);
+    drawCenteredText(boxY + 22, F("-MANIACS-"), 2);
+
+    drawCenteredText(52, F("START"));
+}
+
+void drawCourseSelectScreen() {
+    drawCenteredText(8,  F("SELECT COURSE"));
+    drawCenteredText(22, F("1 2 3 4 5 6 7"));
+    drawCenteredText(36, F("SELECT LEVEL"));
+    drawCenteredText(48, F("A B C"));
+}
+
+
 void drawItems(float cameraX, float cameraY) {
     for (uint8_t i = 0; i < MAX_ITEMS; i++) {
         if (nitroItems[i].active) {
@@ -1409,6 +1484,22 @@ void loop() {
     if (!arduboy.nextFrame()) return;
     arduboy.pollButtons();
     arduboy.clear();
+
+    if (gameState == GameState::Title) {
+        drawTitleScreen();
+        if (arduboy.justPressed(A_BUTTON | B_BUTTON | UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON)) {
+            gameState = GameState::CourseSelect;
+        }
+        arduboy.display();
+        return;
+    }
+
+    if (gameState == GameState::CourseSelect) {
+        drawCourseSelectScreen();
+        // Course / level selection will be wired up next.
+        arduboy.display();
+        return;
+    }
 
     float currentGround = getGroundHeight(playerBike.x);
     float currentSlope  = getGroundSlope(playerBike.x);
