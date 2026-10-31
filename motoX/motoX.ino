@@ -23,6 +23,11 @@ enum class GameState : uint8_t {
     Playing
 };
 
+enum class CourseSelectPhase : uint8_t {
+    Course,
+    Level
+};
+
 struct Bike {
     float x = 16.0f;
     float y = 61.0f;
@@ -119,6 +124,10 @@ constexpr int16_t TMR_TEXT_X = 42;  // "TMR: 00" sits between the speed gauge an
 Bike playerBike;
 
 GameState gameState = GameState::Title; // App flow: title -> course select -> playing
+
+CourseSelectPhase courseSelectPhase = CourseSelectPhase::Course;
+uint8_t selectedCourse = 0; // 0..6 -> courses 1-7
+uint8_t selectedLevel = 0;  // 0..2 -> levels A/B/C
 
 constexpr uint8_t MAX_ITEMS = 3;
 Item nitroItems[MAX_ITEMS] = {
@@ -695,6 +704,24 @@ bool isOnMud(float worldX) {
     return false;
 }
 
+void startRace(uint8_t trackIndex) {
+    loadTrack(trackIndex);
+
+    // Reset the bike to its fresh starting state (Bike members have defaults).
+    playerBike = Bike();
+    playerBike.y = getGroundHeight(playerBike.x);
+
+    // Re-arm all nitro pickups for the chosen track.
+    for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+        nitroItems[i].active = true;
+        nitroItems[i].y = getGroundHeight(nitroItems[i].x) - 14.0f;
+    }
+
+    // Clear any follower bikes / trail left over from a previous race.
+    followerCount = 0;
+    trailHead = 0;
+}
+
 LoopType getLoopType(uint8_t index) {
     return (LoopType)pgm_read_byte(&currentTrack.loops[index].type);
 }
@@ -1208,7 +1235,18 @@ void drawTitleScreen() {
     drawCenteredText(boxY + 6,  F("MOTODROME"), 2);
     drawCenteredText(boxY + 22, F("-MANIACS-"), 2);
 
-    drawCenteredText(52, F("START"));
+    // Static pointer arrow, drawn just left of the centred START text.
+    arduboy.setCursor(42, 55);
+    arduboy.print(F(">"));
+
+    // Blink only the START text (~half a second on, half a second off).
+    if ((arduboy.frameCount / 30) % 2 == 0) {
+        drawCenteredText(55, F("START"));
+    }
+}
+
+void drawSelectorBox(int16_t glyphX, int16_t glyphY) {
+    arduboy.drawRect(glyphX - 2, glyphY - 2, 9, 11, WHITE);
 }
 
 void drawCourseSelectScreen() {
@@ -1216,6 +1254,40 @@ void drawCourseSelectScreen() {
     drawCenteredText(22, F("1 2 3 4 5 6 7"));
     drawCenteredText(36, F("SELECT LEVEL"));
     drawCenteredText(48, F("A B C"));
+
+    if (courseSelectPhase == CourseSelectPhase::Course) {
+        // Digits sit at x = 25, 37, 49, 61, 73, 85, 97 (the centred "1 2 3 4 5 6 7").
+        drawSelectorBox(25 + (int16_t)selectedCourse * 12, 22);
+    } else {
+        // Letters sit at x = 49, 61, 73 (the centred "A B C").
+        drawSelectorBox(49 + (int16_t)selectedLevel * 12, 48);
+    }
+}
+
+void updateCourseSelect() {
+    if (courseSelectPhase == CourseSelectPhase::Course) {
+        if (arduboy.justPressed(LEFT_BUTTON)) {
+            selectedCourse = (selectedCourse + NUM_TRACKS - 1) % NUM_TRACKS;
+        }
+        if (arduboy.justPressed(RIGHT_BUTTON)) {
+            selectedCourse = (selectedCourse + 1) % NUM_TRACKS;
+        }
+        if (arduboy.justPressed(A_BUTTON | B_BUTTON)) {
+            selectedLevel = 0; // 'A' is highlighted first
+            courseSelectPhase = CourseSelectPhase::Level;
+        }
+    } else { // Level phase
+        if (arduboy.justPressed(LEFT_BUTTON)) {
+            selectedLevel = (selectedLevel + 2) % 3;
+        }
+        if (arduboy.justPressed(RIGHT_BUTTON)) {
+            selectedLevel = (selectedLevel + 1) % 3;
+        }
+        if (arduboy.justPressed(A_BUTTON | B_BUTTON)) {
+            startRace(selectedCourse);
+            gameState = GameState::Playing;
+        }
+    }
 }
 
 
@@ -1488,6 +1560,9 @@ void loop() {
     if (gameState == GameState::Title) {
         drawTitleScreen();
         if (arduboy.justPressed(A_BUTTON | B_BUTTON | UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON)) {
+            courseSelectPhase = CourseSelectPhase::Course;
+            selectedCourse = 0;
+            selectedLevel = 0;
             gameState = GameState::CourseSelect;
         }
         arduboy.display();
@@ -1495,8 +1570,8 @@ void loop() {
     }
 
     if (gameState == GameState::CourseSelect) {
+        updateCourseSelect();
         drawCourseSelectScreen();
-        // Course / level selection will be wired up next.
         arduboy.display();
         return;
     }
