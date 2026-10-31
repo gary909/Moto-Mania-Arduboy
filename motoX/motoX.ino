@@ -20,6 +20,7 @@ enum class RiderState : uint8_t {
 enum class GameState : uint8_t {
     Title,
     CourseSelect,
+    CourseInfo,
     Playing
 };
 
@@ -1222,6 +1223,15 @@ void drawCenteredText(int16_t y, const __FlashStringHelper* text, uint8_t size =
     arduboy.setTextSize(1);
 }
 
+// RAM-string overload (for text built at runtime, e.g. "COURSE 1A").
+void drawCenteredText(int16_t y, const char* text, uint8_t size = 1) {
+    int16_t w = strlen(text) * 6 * size;
+    arduboy.setTextSize(size);
+    arduboy.setCursor((WIDTH - w) / 2, y);
+    arduboy.print(text);
+    arduboy.setTextSize(1);
+}
+
 void drawTitleScreen() {
     const int16_t boxX = 2;
     const int16_t boxY = 4;
@@ -1275,6 +1285,23 @@ void drawCourseSelectScreen() {
     }
 }
 
+void drawCourseInfoScreen() {
+    char title[10];
+    title[0] = 'C'; title[1] = 'O'; title[2] = 'U'; title[3] = 'R';
+    title[4] = 'S'; title[5] = 'E'; title[6] = ' ';
+    title[7] = (char)('1' + selectedCourse);
+    title[8] = (char)('A' + selectedLevel);
+    title[9] = '\0';
+
+    arduboy.drawRect(4, 4, 120, 24, WHITE); // box around the title
+    drawCenteredText(8, title, 2);          // "COURSE 1A" etc., slightly larger
+
+    drawCenteredText(32, F("COURSE RECORD"));
+    drawCenteredText(40, F("1:20:00"));
+    drawCenteredText(48, F("QUALIFYING TIME"));
+    drawCenteredText(56, F("1:50:00"));
+}
+
 void updateCourseSelect() {
     if (courseSelectPhase == CourseSelectPhase::Course) {
         if (arduboy.justPressed(LEFT_BUTTON)) {
@@ -1295,8 +1322,7 @@ void updateCourseSelect() {
             selectedLevel = (selectedLevel + 1) % 3;
         }
         if (arduboy.justPressed(B_BUTTON)) {
-            startRace(selectedCourse);
-            gameState = GameState::Playing;
+            gameState = GameState::CourseInfo;
         }
         if (arduboy.justPressed(A_BUTTON)) {
             courseSelectPhase = CourseSelectPhase::Course; // back to reselect course
@@ -1586,6 +1612,16 @@ void loop() {
     if (gameState == GameState::CourseSelect) {
         updateCourseSelect();
         drawCourseSelectScreen();
+        arduboy.display();
+        return;
+    }
+
+    if (gameState == GameState::CourseInfo) {
+        drawCourseInfoScreen();
+        if (arduboy.justPressed(A_BUTTON | B_BUTTON | UP_BUTTON | DOWN_BUTTON | LEFT_BUTTON | RIGHT_BUTTON)) {
+            startRace(selectedCourse);
+            gameState = GameState::Playing;
+        }
         arduboy.display();
         return;
     }
