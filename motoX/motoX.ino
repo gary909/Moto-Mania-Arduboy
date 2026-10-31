@@ -2,6 +2,8 @@
 #include <avr/pgmspace.h>
 #include <math.h>
 
+// This version has 7 tracks (identical for now; a level select comes later)
+
 // Global Arduboy Instance
 Arduboy2 arduboy;
 
@@ -189,10 +191,13 @@ const unsigned char epd_bitmap_motoXbikeStatic [] PROGMEM = {
 };
 
 // -------------------------------------------------------------
+// -------------------------------------------------------------
 // 4. TRACK & TERRAIN DATA (PROGMEM)
 // -------------------------------------------------------------
 constexpr uint8_t TERRAIN_STEP_X = 8; // Pixels between heightmap samples
 
+// Terrain heightmaps. Track 1 is the reference layout; tracks 2-7 are
+// identical copies for now and can be edited independently later.
 const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
@@ -238,8 +243,228 @@ const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61
 };
 
-const uint16_t TRACK1_LENGTH_SAMPLES = sizeof(track1_heights) / sizeof(track1_heights[0]);
-const float TRACK1_MAX_X = (TRACK1_LENGTH_SAMPLES - 1) * TERRAIN_STEP_X;
+// Identical to track 1 for now.
+const uint8_t track2_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
+// Identical to track 1 for now.
+const uint8_t track3_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
+// Identical to track 1 for now.
+const uint8_t track4_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
+// Identical to track 1 for now.
+const uint8_t track5_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
+// Identical to track 1 for now.
+const uint8_t track6_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
+// Identical to track 1 for now.
+const uint8_t track7_heights[] PROGMEM = {
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    53, 45, 37, 29, 37, 45, 53, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    56, 51, 46, 41, 36, 31, 31, 31,
+    31, 36, 41, 46, 51, 56, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 53,
+    45, 37, 29, 37, 45, 53, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 56,
+    51, 46, 41, 36, 31, 31, 31, 31,
+    36, 41, 46, 51, 56, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 53, 45,
+    37, 29, 37, 45, 53, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 56, 51,
+    46, 41, 36, 31, 31, 31, 31, 36,
+    41, 46, 51, 56, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 53, 45, 37,
+    29, 37, 45, 53, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 60, 58, 55,
+    50, 43, 33, 23, 21, 21, 21, 21,
+    21, 21, 21, 21, 29, 37, 45, 53,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 56, 51, 46, 41, 36, 31, 31,
+    31, 31, 36, 41, 46, 51, 56, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61,
+    61, 61, 61, 61, 61, 61, 61, 61
+};
+
 
 // Floating loops: reached by a nitro + UP boosted jump off the ramp before them
 const Loop track1_loops[] PROGMEM = {
@@ -250,12 +475,61 @@ const Loop track1_loops[] PROGMEM = {
     { 1906, -15, 24, LoopType::QuarterPipe },
     { 1905, -52, 24, LoopType::Side },
 };
-constexpr uint8_t TRACK1_LOOP_COUNT = sizeof(track1_loops) / sizeof(track1_loops[0]);
 
-// Arches: the rideable outer surface lives in track1_heights; only the hollow inner edge is drawn from here
+// Identical to track 1 for now.
+const Loop track2_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+// Identical to track 1 for now.
+const Loop track3_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+// Identical to track 1 for now.
+const Loop track4_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+// Identical to track 1 for now.
+const Loop track5_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+// Identical to track 1 for now.
+const Loop track6_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+// Identical to track 1 for now.
+const Loop track7_loops[] PROGMEM = {
+    { 450, -16, 28, LoopType::Standard },
+    { 826, -16, 28, LoopType::Tilted },
+    { 1906, -15, 24, LoopType::QuarterPipe },
+    { 1905, -52, 24, LoopType::Side },
+};
+
+
+// Arches: the rideable outer surface lives in the heightmap of the track being drawn;
+// only the hollow inner edge is drawn from here
 struct ArchPoint {
-    uint8_t x; // Offset from the arch's start X
-    int8_t y;  // Offset from the ground height at the arch's start X
+    uint8_t x; // Offset from the arch start X
+    int8_t y;  // Offset from the ground height at the arch start X
 };
 
 const ArchPoint ARCH_INNER[] PROGMEM = {
@@ -267,15 +541,112 @@ constexpr uint8_t ARCH_INNER_COUNT = sizeof(ARCH_INNER) / sizeof(ARCH_INNER[0]);
 constexpr int16_t ARCH_WIDTH = 160;
 
 const uint16_t track1_arches[] PROGMEM = { 1440 };
-constexpr uint8_t TRACK1_ARCH_COUNT = sizeof(track1_arches) / sizeof(track1_arches[0]);
 
-// Flat mud patches: while grounded on these, the bike's speed is halved.
+// Identical to track 1 for now.
+const uint16_t track2_arches[] PROGMEM = { 1440 };
+
+// Identical to track 1 for now.
+const uint16_t track3_arches[] PROGMEM = { 1440 };
+
+// Identical to track 1 for now.
+const uint16_t track4_arches[] PROGMEM = { 1440 };
+
+// Identical to track 1 for now.
+const uint16_t track5_arches[] PROGMEM = { 1440 };
+
+// Identical to track 1 for now.
+const uint16_t track6_arches[] PROGMEM = { 1440 };
+
+// Identical to track 1 for now.
+const uint16_t track7_arches[] PROGMEM = { 1440 };
+
+
+// Flat mud patches: while grounded on these, the bike speed is halved.
 // Keep patches entirely on flat (height 61) ground.
 struct MudPatch { uint16_t x1; uint16_t x2; };
 const MudPatch track1_mud[] PROGMEM = {
     { 40, 184 }, // entire flat start (height 61); the bike spawns here at x=16
 };
-constexpr uint8_t TRACK1_MUD_COUNT = sizeof(track1_mud) / sizeof(track1_mud[0]);
+
+// Identical to track 1 for now.
+const MudPatch track2_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+// Identical to track 1 for now.
+const MudPatch track3_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+// Identical to track 1 for now.
+const MudPatch track4_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+// Identical to track 1 for now.
+const MudPatch track5_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+// Identical to track 1 for now.
+const MudPatch track6_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+// Identical to track 1 for now.
+const MudPatch track7_mud[] PROGMEM = {
+    { 40, 184 },
+};
+
+
+// ---------------------------------------------------------------------------
+// Track descriptor table + active-track selection.
+// The level select will later set currentTrackIndex (0..NUM_TRACKS-1).
+// ---------------------------------------------------------------------------
+struct Track {
+    const uint8_t*  heights;       // PROGMEM pointer to the terrain heightmap
+    uint16_t        lengthSamples; // Number of heightmap samples
+    const Loop*     loops;         // PROGMEM pointer to the floating loops
+    uint8_t         loopCount;
+    const uint16_t* arches;        // PROGMEM pointer to arch start positions
+    uint8_t         archCount;
+    const MudPatch* mud;           // PROGMEM pointer to the mud patches
+    uint8_t         mudCount;
+};
+
+constexpr uint8_t NUM_TRACKS = 7;
+
+const Track tracks[NUM_TRACKS] PROGMEM = {
+    { track1_heights, sizeof(track1_heights) / sizeof(track1_heights[0]), track1_loops, sizeof(track1_loops) / sizeof(track1_loops[0]), track1_arches, sizeof(track1_arches) / sizeof(track1_arches[0]), track1_mud, sizeof(track1_mud) / sizeof(track1_mud[0]) },
+    { track2_heights, sizeof(track2_heights) / sizeof(track2_heights[0]), track2_loops, sizeof(track2_loops) / sizeof(track2_loops[0]), track2_arches, sizeof(track2_arches) / sizeof(track2_arches[0]), track2_mud, sizeof(track2_mud) / sizeof(track2_mud[0]) },
+    { track3_heights, sizeof(track3_heights) / sizeof(track3_heights[0]), track3_loops, sizeof(track3_loops) / sizeof(track3_loops[0]), track3_arches, sizeof(track3_arches) / sizeof(track3_arches[0]), track3_mud, sizeof(track3_mud) / sizeof(track3_mud[0]) },
+    { track4_heights, sizeof(track4_heights) / sizeof(track4_heights[0]), track4_loops, sizeof(track4_loops) / sizeof(track4_loops[0]), track4_arches, sizeof(track4_arches) / sizeof(track4_arches[0]), track4_mud, sizeof(track4_mud) / sizeof(track4_mud[0]) },
+    { track5_heights, sizeof(track5_heights) / sizeof(track5_heights[0]), track5_loops, sizeof(track5_loops) / sizeof(track5_loops[0]), track5_arches, sizeof(track5_arches) / sizeof(track5_arches[0]), track5_mud, sizeof(track5_mud) / sizeof(track5_mud[0]) },
+    { track6_heights, sizeof(track6_heights) / sizeof(track6_heights[0]), track6_loops, sizeof(track6_loops) / sizeof(track6_loops[0]), track6_arches, sizeof(track6_arches) / sizeof(track6_arches[0]), track6_mud, sizeof(track6_mud) / sizeof(track6_mud[0]) },
+    { track7_heights, sizeof(track7_heights) / sizeof(track7_heights[0]), track7_loops, sizeof(track7_loops) / sizeof(track7_loops[0]), track7_arches, sizeof(track7_arches) / sizeof(track7_arches[0]), track7_mud, sizeof(track7_mud) / sizeof(track7_mud[0]) }
+};
+
+uint8_t currentTrackIndex = 0; // Which of the 7 tracks is active (level select will set this)
+
+// Runtime copy of the active track descriptor so gameplay/rendering code reads
+// through this single struct instead of hard-coded track1_* names.
+Track currentTrack;
+
+void loadTrack(uint8_t index) {
+    currentTrack.heights       = (const uint8_t*)pgm_read_word(&tracks[index].heights);
+    currentTrack.lengthSamples = pgm_read_word(&tracks[index].lengthSamples);
+    currentTrack.loops         = (const Loop*)pgm_read_word(&tracks[index].loops);
+    currentTrack.loopCount     = pgm_read_byte(&tracks[index].loopCount);
+    currentTrack.arches        = (const uint16_t*)pgm_read_word(&tracks[index].arches);
+    currentTrack.archCount     = pgm_read_byte(&tracks[index].archCount);
+    currentTrack.mud           = (const MudPatch*)pgm_read_word(&tracks[index].mud);
+    currentTrack.mudCount      = pgm_read_byte(&tracks[index].mudCount);
+    currentTrackIndex = index;
+}
+
+float getTrackMaxX() {
+    return (currentTrack.lengthSamples - 1) * TERRAIN_STEP_X;
+}
 
 // -------------------------------------------------------------
 // 5. PROGMEM LOOKUP FUNCTIONS
@@ -285,12 +656,12 @@ float getGroundHeight(float worldX) {
     
     uint16_t sampleIndex = (uint16_t)(worldX / TERRAIN_STEP_X);
     
-    if (sampleIndex >= TRACK1_LENGTH_SAMPLES - 1) {
-        return pgm_read_byte(&track1_heights[TRACK1_LENGTH_SAMPLES - 1]);
+    if (sampleIndex >= currentTrack.lengthSamples - 1) {
+        return pgm_read_byte(&currentTrack.heights[currentTrack.lengthSamples - 1]);
     }
 
-    uint8_t y1 = pgm_read_byte(&track1_heights[sampleIndex]);
-    uint8_t y2 = pgm_read_byte(&track1_heights[sampleIndex + 1]);
+    uint8_t y1 = pgm_read_byte(&currentTrack.heights[sampleIndex]);
+    uint8_t y2 = pgm_read_byte(&currentTrack.heights[sampleIndex + 1]);
 
     float localProgress = (worldX - (sampleIndex * TERRAIN_STEP_X)) / (float)TERRAIN_STEP_X;
 
@@ -300,24 +671,24 @@ float getGroundHeight(float worldX) {
 float getGroundSlope(float worldX) {
     uint16_t sampleIndex = (uint16_t)(worldX / TERRAIN_STEP_X);
     
-    if (sampleIndex >= TRACK1_LENGTH_SAMPLES - 1) return 0.0f;
+    if (sampleIndex >= currentTrack.lengthSamples - 1) return 0.0f;
 
-    int8_t heightDiff = (int8_t)pgm_read_byte(&track1_heights[sampleIndex + 1]) - 
-                        (int8_t)pgm_read_byte(&track1_heights[sampleIndex]);
+    int8_t heightDiff = (int8_t)pgm_read_byte(&currentTrack.heights[sampleIndex + 1]) - 
+                        (int8_t)pgm_read_byte(&currentTrack.heights[sampleIndex]);
 
     return (float)heightDiff / (float)TERRAIN_STEP_X;
 }
 
 bool isOnMud(float worldX) {
-    for (uint8_t i = 0; i < TRACK1_MUD_COUNT; i++) {
-        if (worldX >= pgm_read_word(&track1_mud[i].x1) &&
-            worldX <= pgm_read_word(&track1_mud[i].x2)) return true;
+    for (uint8_t i = 0; i < currentTrack.mudCount; i++) {
+        if (worldX >= pgm_read_word(&currentTrack.mud[i].x1) &&
+            worldX <= pgm_read_word(&currentTrack.mud[i].x2)) return true;
     }
     return false;
 }
 
 LoopType getLoopType(uint8_t index) {
-    return (LoopType)pgm_read_byte(&track1_loops[index].type);
+    return (LoopType)pgm_read_byte(&currentTrack.loops[index].type);
 }
 
 // Opening of a loop as an angle range (0 = bottom, positive = toward the right side)
@@ -457,7 +828,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.vx *= DRAG;
             bike.x += bike.vx;
 
-            if (bike.x > TRACK1_MAX_X - 16) {
+            if (bike.x > getTrackMaxX() - 16) {
                 bike.x = 0;
                 
                 // Respawn all items to make them reusable for the next lap
@@ -526,10 +897,10 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             bike.y += bike.vy;
 
             // Loop capture: arm when entering near the opening, attach when hitting the inner wall
-            for (uint8_t i = 0; i < TRACK1_LOOP_COUNT && !bike.loopLocked; i++) {
-                float cx = pgm_read_word(&track1_loops[i].x);
-                float cy = (int8_t)pgm_read_byte(&track1_loops[i].y);
-                float r  = pgm_read_byte(&track1_loops[i].radius);
+            for (uint8_t i = 0; i < currentTrack.loopCount && !bike.loopLocked; i++) {
+                float cx = pgm_read_word(&currentTrack.loops[i].x);
+                float cy = (int8_t)pgm_read_byte(&currentTrack.loops[i].y);
+                float r  = pgm_read_byte(&currentTrack.loops[i].radius);
                 float dx = bike.x - cx;
                 float dy = bike.y - cy;
                 float pdx = dx - bike.vx;
@@ -578,7 +949,7 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
             }
 
             // Handle track wrap-around in mid-air
-            if (bike.x > TRACK1_MAX_X - 16) {
+            if (bike.x > getTrackMaxX() - 16) {
                 bike.x = 0;
                 // Respawn items for the next lap
                 for (uint8_t i = 0; i < MAX_ITEMS; i++) {
@@ -640,9 +1011,9 @@ void updateBike(Bike& bike, float groundHeightAtX, float groundSlopeAtX) {
         // 4. LOOPING STATE (bike.vx is reused as speed along the loop)
         // -------------------------------------------------------------
         case RiderState::Looping: {
-            float cx = pgm_read_word(&track1_loops[bike.loopIndex].x);
-            float cy = (int8_t)pgm_read_byte(&track1_loops[bike.loopIndex].y);
-            float r  = pgm_read_byte(&track1_loops[bike.loopIndex].radius);
+            float cx = pgm_read_word(&currentTrack.loops[bike.loopIndex].x);
+            float cy = (int8_t)pgm_read_byte(&currentTrack.loops[bike.loopIndex].y);
+            float r  = pgm_read_byte(&currentTrack.loops[bike.loopIndex].radius);
             bool quarterPipe = getLoopType(bike.loopIndex) == LoopType::QuarterPipe;
             const float g = GRAVITY * LOOP_GRAVITY_SCALE;
 
@@ -897,13 +1268,13 @@ void drawQuarterArc(int16_t x0, int16_t y0, int16_t r) {
 }
 
 void drawLoops(float cameraX, float cameraY) {
-    for (uint8_t i = 0; i < TRACK1_LOOP_COUNT; i++) {
-        int16_t r = pgm_read_byte(&track1_loops[i].radius);
-        float cx = pgm_read_word(&track1_loops[i].x);
+    for (uint8_t i = 0; i < currentTrack.loopCount; i++) {
+        int16_t r = pgm_read_byte(&currentTrack.loops[i].radius);
+        float cx = pgm_read_word(&currentTrack.loops[i].x);
         int16_t outer = r + LOOP_FRAME_PAD;
         int16_t sx = (int16_t)(cx - cameraX);
         if (sx + outer < 0 || sx - outer > 127) continue;
-        int16_t sy = (int16_t)((int8_t)pgm_read_byte(&track1_loops[i].y) - cameraY);
+        int16_t sy = (int16_t)((int8_t)pgm_read_byte(&currentTrack.loops[i].y) - cameraY);
         LoopType type = getLoopType(i);
 
         if (type == LoopType::QuarterPipe) {
@@ -962,8 +1333,8 @@ void drawLoops(float cameraX, float cameraY) {
 }
 
 void drawArches(float cameraX, float cameraY) {
-    for (uint8_t i = 0; i < TRACK1_ARCH_COUNT; i++) {
-        float ax = pgm_read_word(&track1_arches[i]);
+    for (uint8_t i = 0; i < currentTrack.archCount; i++) {
+        float ax = pgm_read_word(&currentTrack.arches[i]);
         int16_t sx = (int16_t)(ax - cameraX);
         if (sx + ARCH_WIDTH < 0 || sx > 127) continue;
         int16_t sy = (int16_t)(getGroundHeight(ax) - cameraY);
@@ -1026,6 +1397,7 @@ void drawFollowers(float cameraX, float cameraY) {
 void setup() {
     arduboy.begin();
     arduboy.setFrameRate(60);
+    loadTrack(0); // Start on track 1 (the level select will change this later)
     
     // Set vertical position for items to hover slightly above the terrain
     for (uint8_t i = 0; i < MAX_ITEMS; i++) {
