@@ -1252,7 +1252,7 @@ void drawSelectorBox(int16_t glyphX, int16_t glyphY) {
 void drawCourseSelectScreen() {
     drawCenteredText(8,  F("SELECT COURSE"));
     drawCenteredText(22, F("1 2 3 4 5 6 7"));
-    drawCenteredText(36, F("SELECT LEVEL"));
+    drawCenteredText(38, F("SELECT LEVEL"));
     drawCenteredText(48, F("A B C"));
 
     if (courseSelectPhase == CourseSelectPhase::Course) {
@@ -1272,7 +1272,7 @@ void updateCourseSelect() {
         if (arduboy.justPressed(RIGHT_BUTTON)) {
             selectedCourse = (selectedCourse + 1) % NUM_TRACKS;
         }
-        if (arduboy.justPressed(A_BUTTON | B_BUTTON)) {
+        if (arduboy.justPressed(B_BUTTON)) {
             selectedLevel = 0; // 'A' is highlighted first
             courseSelectPhase = CourseSelectPhase::Level;
         }
@@ -1283,9 +1283,12 @@ void updateCourseSelect() {
         if (arduboy.justPressed(RIGHT_BUTTON)) {
             selectedLevel = (selectedLevel + 1) % 3;
         }
-        if (arduboy.justPressed(A_BUTTON | B_BUTTON)) {
+        if (arduboy.justPressed(B_BUTTON)) {
             startRace(selectedCourse);
             gameState = GameState::Playing;
+        }
+        if (arduboy.justPressed(A_BUTTON)) {
+            courseSelectPhase = CourseSelectPhase::Course; // back to reselect course
         }
     }
 }
