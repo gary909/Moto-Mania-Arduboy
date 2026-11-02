@@ -127,4 +127,5 @@ V0.01: Bike responds to track elements
 <img width="250" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
 
 
+
 <img width="300" alt="IMG_20260914_093152150" src="https://github.com/user-attachments/assets/7a030761-4a23-4602-b276-1eba0d8cec5d" />
