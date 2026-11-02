@@ -1,5 +1,8 @@
 "# Moto-Mania-Arduboy"
 
+<img width="500" height="272" alt="pixelated-image (1)" src="https://github.com/user-attachments/assets/38b99415-62dc-4601-b526-e9dd287bdb56" />
+
+
 TO DO
 
 Add time pick ups
@@ -10,19 +13,16 @@ Add time count down
 
 Add Rocks
 
-Add Dirt slow down Area
-
 Add Start/End Ramp
 
-Start screen
-
-Options Screen
-
-
-
+<img width="500" height="272" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
 
 
 _________________________________
+
+- Update 01.11.26: created  Title screen, level select screen, 7 blank courses
+
+- added Add Dirt slow down Area
 
 v0.34: added 360-spin follower bikes
 
