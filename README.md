@@ -1,6 +1,6 @@
 "# Moto-Mania-Arduboy"
 
-<img width="300" alt="pixelated-image (1)" src="https://github.com/user-attachments/assets/38b99415-62dc-4601-b526-e9dd287bdb56" />
+<img width="250" alt="pixelated-image (1)" src="https://github.com/user-attachments/assets/38b99415-62dc-4601-b526-e9dd287bdb56" />
 
 
 TO DO
@@ -14,8 +14,6 @@ Add time count down
 Add Rocks
 
 Add Start/End Ramp
-
-<img width="300" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
 
 
 _________________________________
@@ -125,6 +123,8 @@ V0.03: Bike goes airborne and stays in takeoff direction until user input
 V0.02: Bike goes airborne. Changed icon to arrow.
 
 V0.01: Bike responds to track elements
+
+<img width="250" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
 
 
 <img width="300" alt="IMG_20260914_093152150" src="https://github.com/user-attachments/assets/7a030761-4a23-4602-b276-1eba0d8cec5d" />
