@@ -1,6 +1,6 @@
 "# Moto-Mania-Arduboy"
 
-<img width="500" height="272" alt="pixelated-image (1)" src="https://github.com/user-attachments/assets/38b99415-62dc-4601-b526-e9dd287bdb56" />
+<img width="300" alt="pixelated-image (1)" src="https://github.com/user-attachments/assets/38b99415-62dc-4601-b526-e9dd287bdb56" />
 
 
 TO DO
@@ -15,7 +15,7 @@ Add Rocks
 
 Add Start/End Ramp
 
-<img width="500" height="272" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
+<img width="300" alt="pixelated-image" src="https://github.com/user-attachments/assets/3afd1fa2-edb4-4b21-bdaf-348a7422d54c" />
 
 
 _________________________________
