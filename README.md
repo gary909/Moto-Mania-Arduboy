@@ -5,6 +5,8 @@
 
 TO DO
 
+Courses.  Go through the temp course and assign numbers to the sections eg 0 = flat, 1 = smallest jump, 2 = middle jump etc.  Then create courses using this method comparing to course drawings
+
 Add time pick ups
 
 Add Speed pick ups
