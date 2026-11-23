@@ -5,7 +5,7 @@
 
 TO DO
 
-Courses.  Go through the temp course and assign numbers to the sections eg 0 = flat, 1 = smallest jump, 2 = middle jump etc.  Then create courses using this method comparing to course drawings
+Courses.  Terrain is built from named sections in motoX.ino (FLAT8/12/16/24, ROLLERS8, WHOOPS8, JUMP_SMALL/MID/BIG/HIGH, TABLE_LONG, TERRACE31, ARCH_L/TOP/R).  Compose courses from these and keep each section's sample count intact so loops, arches and pickups don't shift.  Courses 2-4 are rebuilt; 5-7 still to do.
 
 Add time pick ups
 
@@ -18,11 +18,28 @@ Add Rocks
 Add Start/End Ramp
 
 
+COURSES (2 laps per course, lap = one full pass of the heightmap)
+
+| # | Name | Length | Loops | Arches | Signature features |
+|---|------|--------|-------|--------|--------------------|
+| 1 | Temp Test Course | 2104px | 3 + QP + Side | 1 | reference layout, left untouched |
+| 2 | Rollers & First Air | 2088px | 2 | 2 | rollers, 15/20/30px jumps, no mud - the easy one |
+| 3 | Rhythm & Tables | 2376px | 2 | 2 | roller pairs, 72px tabletop, whoops |
+| 4 | Mud & Terraces | 2560px | 2 | 1 | two mud bogs, 30px tabletop, 30px cliff-drop terrace |
+| 5 | Loops & Drops | 1872px | 4 | 2 | original layout (rebuild pending) |
+| 6 | Terraces & Quarter-Pipe | 2016px | 3 + QP + Side | 2 | original layout (rebuild pending) |
+| 7 | Grand Course | 2920px | 6 + QP + Side | 3 | original layout (rebuild pending) |
+
+
 _________________________________
 
 - Update 01.11.26: created  Title screen, level select screen, 7 blank courses
 
 - added Add Dirt slow down Area
+
+v0.36: rebuilt courses 2-4 as longer, section-built layouts (2088 / 2376 / 2560px) with roller runs, tabletops, a cliff-drop terrace and a second loop per course; nitro pickups now spread along each lap
+
+v0.35: added half-height jump section (15px kicker, same 32-degree face) and used it in all 7 courses
 
 v0.34: added 360-spin follower bikes
 

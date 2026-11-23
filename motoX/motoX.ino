@@ -132,7 +132,7 @@ uint8_t selectedLevel = 0;  // 0..2 -> levels A/B/C
 
 constexpr uint8_t MAX_ITEMS = 3;
 Item nitroItems[MAX_ITEMS] = {
-    { 80.0f, 0.0f, true },
+    { 80.0f, 0.0f, true },   // x is re-spread along the lap by startRace()
     { 200.0f, 0.0f, true },
     { 320.0f, 0.0f, true }
 };
@@ -216,6 +216,37 @@ constexpr uint8_t TERRAIN_STEP_X = 8; // Pixels between heightmap samples
 
 // Terrain heightmaps. Track 1 is the reference layout; Tracks 2-7 are
 // original, progressively harder courses built from the same terrain sections.
+//
+// Terrain section library. Courses are composed from these named sections
+// instead of hand-typed rows: one value = one 8px-wide heightmap sample and
+// 61 = the flat baseline (a lower number means higher ground).
+//   JUMP_BIG   = 30px kicker, 32-degree face (15 samples, crest at +40px)
+//   JUMP_SMALL = 15px kicker, same 32-degree face (9 samples, crest at +24px)
+//   JUMP_MID   = 20px kicker, same 32-degree face (11 samples, crest at +32px)
+//   JUMP_BIG   = 30px kicker, same 32-degree face (15 samples, crest at +40px)
+//   JUMP_HIGH  = 40px kicker, same 32-degree face (19 samples, crest at +56px)
+//   TABLE_LONG = 30px tabletop with a 72px flat top (20 samples)
+//   TERRACE31  = ramp to 30px, 144px top, then a 30px cliff drop (24 samples)
+//   ARCH_L/TOP/R = the 40px arch split into face / roof / back (7 + 8 + 5 samples)
+// Keep a section's sample count the same when swapping it for another one,
+// otherwise every loop / arch / pickup that follows it shifts in world space.
+#define FLAT3       61, 61, 61
+#define FLAT8       61, 61, 61, 61, 61, 61, 61, 61
+#define FLAT12      61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61
+#define FLAT16      61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61
+#define FLAT24      61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61
+#define ROLLERS8    56, 50, 45, 42, 45, 50, 56, 61
+#define WHOOPS8     53, 45, 37, 29, 37, 45, 53, 61
+#define JUMP_SMALL  56, 51, 46, 46, 46, 46, 51, 56, 61
+#define JUMP_MID    56, 51, 46, 41, 41, 41, 41, 46, 51, 56, 61
+#define JUMP_BIG    56, 51, 46, 41, 36, 31, 31, 31, 31, 36, 41, 46, 51, 56, 61
+#define JUMP_HIGH   56, 51, 46, 41, 36, 31, 26, 21, 21, 21, 21, 26, 31, 36, 41, 46, 51, 56, 61
+#define TABLE_LONG  56, 51, 46, 41, 36, 31, 31, 31, 31, 31, 31, 31, 31, 31, 36, 41, 46, 51, 56, 61
+#define TERRACE31   56, 51, 46, 41, 36, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 31, 61
+#define ARCH_L      60, 58, 55, 50, 43, 33, 23
+#define ARCH_TOP    21, 21, 21, 21, 21, 21, 21, 21
+#define ARCH_R      29, 37, 45, 53, 61
+
 const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
     61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
@@ -239,9 +270,7 @@ const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
         // repeat course for testing:
     ,61, 61, 61, 61, 61, 61, 61, 61, // Flat start (0 - 56px)
-    56, 51, 46, 41, 36, 31,         // Ramp up (64 - 104px)
-    31, 31, 31,                     // Crest (112 - 128px)
-    36, 41, 46, 51, 56, 61,         // Ramp down (136 - 176px)
+    FLAT3, JUMP_SMALL, FLAT3,       // Half-height jump (15px): x=1136-1256
     61, 61, 61, 61, 61, 61, 61, 61, // Flat middle (184 - 240px)
     53, 45, 37, 29, 37, 45, 53, 61, // Whoops / Bumps (248 - 304px)
     61, 61, 61, 61, 61, 61, 61, 61  // Flat end (312 - 368px)
@@ -261,83 +290,156 @@ const uint8_t track1_heights[] PROGMEM = {
     61, 61, 61, 61, 61, 61, 61, 61
 };
 
-// Track 2: Tabletop Trail - forgiving jumps and an introductory loop.
+// Track 2: Rollers & First Air - gentle rollers, 20px air and two easy loops.
 const uint8_t track2_heights[] PROGMEM = {
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat start: x=0-56
-    61, 61, 61, 61, 61, 61, 61, 61, // x=64-120
-    53, 45, 37, 29, 37, 45, 53, 61, // Whoops: x=128-184
-    61, 61, 61, 61, 61, 61, 61, 61, // Recovery: x=192-248
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + standard loop: x=256-312
-    31, 36, 41, 46, 51, 56, 61,     // x=320-368
-    61, 61, 61, 61, 61, 61, 61, 61, // Landing and recovery: x=376-432
-    61, 61, 61, 61, 61, 61, 61, 61, // x=440-496
-    53, 45, 37, 29, 37, 45, 53, 61, // Whoops: x=504-560
-    61, 61, 61, 61, 61, 61, 61, 61, // Ramp approach: x=568-624
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop: x=632-688
-    31, 36, 41, 46, 51, 56, 61,     // x=696-744
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch approach: x=752-808
-    60, 58, 55, 50, 43, 33, 23,     // Arch: x=816-864
-    21, 21, 21, 21, 21, 21, 21, 21, // x=872-928
-    29, 37, 45, 53, 61,             // x=936-968
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch run-out: x=976-1032
-    61, 61, 61, 61, 61, 61, 61, 61, // Mud: x=1040-1096
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat finish: x=1104-1160
-    61, 61, 61, 61, 61, 61, 61, 61  // x=1168-1224
+    // 16 samples - 128px flat (x=0-128)
+    FLAT16,
+    // 8 samples - 64px gentle rollers (x=128-192)
+    ROLLERS8,
+    // 8 samples - 64px flat (x=192-256)
+    FLAT8,
+    // 11 samples - 20px jump (x=256-344)
+    JUMP_MID,
+    // 16 samples - 128px flat (x=344-472)
+    FLAT16,
+    // 8 samples - 64px gentle rollers (x=472-536)
+    ROLLERS8,
+    // 12 samples - 96px flat (x=536-632)
+    FLAT12,
+    // 15 samples - 30px kicker (x=632-752)
+    JUMP_BIG,
+    // 16 samples - 128px flat (x=752-880)
+    FLAT16,
+    // 20 samples - 40px arch (x=880-1040)
+    ARCH_L, ARCH_TOP, ARCH_R,
+    // 12 samples - 96px flat (x=1040-1136)
+    FLAT12,
+    // 9 samples - 15px jump (x=1136-1208)
+    JUMP_SMALL,
+    // 8 samples - 64px flat (x=1208-1272)
+    FLAT8,
+    // 8 samples - 64px gentle rollers (x=1272-1336)
+    ROLLERS8,
+    // 12 samples - 96px flat (x=1336-1432)
+    FLAT12,
+    // 15 samples - 30px kicker (x=1432-1552)
+    JUMP_BIG,
+    // 16 samples - 128px flat (x=1552-1680)
+    FLAT16,
+    // 20 samples - 40px arch (x=1680-1840)
+    ARCH_L, ARCH_TOP, ARCH_R,
+    // 8 samples - 64px flat (x=1840-1904)
+    FLAT8,
+    // 8 samples - 64px gentle rollers (x=1904-1968)
+    ROLLERS8,
+    // 16 samples - 128px flat (x=1968-2096)
+    FLAT16
 };
 
-// Track 3: Ridge Runner - rhythm whoops, two loops, and a mid-course arch.
+// Track 3: Rhythm & Tables - roller pairs, a 72px tabletop and two loops.
 const uint8_t track3_heights[] PROGMEM = {
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat start: x=0-56
-    61, 61, 61, 61, 61, 61, 61, 61, // x=64-120
-    53, 45, 37, 29, 37, 45, 53, 61, // Whoops: x=128-184
-    61, 61, 61, 61, 61, 61, 61, 61, // Ramp approach: x=192-248
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + tilted loop: x=256-312
-    31, 36, 41, 46, 51, 56, 61,     // x=320-368
-    61, 61, 61, 61, 61, 61, 61, 61, // Landing: x=376-432
-    53, 45, 37, 29, 37, 45, 53, 61, // Double whoops A: x=440-496
-    53, 45, 37, 29, 37, 45, 53, 61, // Double whoops B: x=504-560
-    61, 61, 61, 61, 61, 61, 61, 61, // Ramp approach: x=568-624
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop: x=632-688
-    31, 36, 41, 46, 51, 56, 61,     // x=696-744
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch approach: x=752-808
-    60, 58, 55, 50, 43, 33, 23,     // Arch: x=816-864
-    21, 21, 21, 21, 21, 21, 21, 21, // x=872-928
-    29, 37, 45, 53, 61,             // x=936-968
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch run-out: x=976-1032
-    53, 45, 37, 29, 37, 45, 53, 61, // Whoops: x=1040-1096
-    61, 61, 61, 61, 61, 61, 61, 61, // Ramp approach: x=1104-1160
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + standard loop: x=1168-1224
-    31, 36, 41, 46, 51, 56, 61,     // x=1232-1280
-    61, 61, 61, 61, 61, 61, 61, 61, // Mud: x=1288-1344
-    61, 61, 61, 61, 61, 61, 61, 61  // Flat finish: x=1352-1408
+    // 16 samples - 128px flat (x=0-128)
+    FLAT16,
+    // 8 samples - 64px gentle rollers (x=128-192)
+    ROLLERS8,
+    // 8 samples - 64px gentle rollers (x=192-256)
+    ROLLERS8,
+    // 8 samples - 64px flat (x=256-320)
+    FLAT8,
+    // 11 samples - 20px jump (x=320-408)
+    JUMP_MID,
+    // 12 samples - 96px flat (x=408-504)
+    FLAT12,
+    // 8 samples - 64px gentle rollers (x=504-568)
+    ROLLERS8,
+    // 12 samples - 96px flat (x=568-664)
+    FLAT12,
+    // 20 samples - 30px tabletop (72px top) (x=664-824)
+    TABLE_LONG,
+    // 16 samples - 128px flat (x=824-952)
+    FLAT16,
+    // 20 samples - 40px arch (x=952-1112)
+    ARCH_L, ARCH_TOP, ARCH_R,
+    // 8 samples - 64px flat (x=1112-1176)
+    FLAT8,
+    // 9 samples - 15px jump (x=1176-1248)
+    JUMP_SMALL,
+    // 8 samples - 64px flat (x=1248-1312)
+    FLAT8,
+    // 8 samples - 64px gentle rollers (x=1312-1376)
+    ROLLERS8,
+    // 12 samples - 96px flat (x=1376-1472)
+    FLAT12,
+    // 15 samples - 30px kicker (x=1472-1592)
+    JUMP_BIG,
+    // 16 samples - 128px flat (x=1592-1720)
+    FLAT16,
+    // 20 samples - 40px arch (x=1720-1880)
+    ARCH_L, ARCH_TOP, ARCH_R,
+    // 12 samples - 96px flat (x=1880-1976)
+    FLAT12,
+    // 11 samples - 20px jump (x=1976-2064)
+    JUMP_MID,
+    // 16 samples - 128px flat (x=2064-2192)
+    FLAT16,
+    // 8 samples - 64px deep whoops (x=2192-2256)
+    WHOOPS8,
+    // 16 samples - 128px flat (x=2256-2384)
+    FLAT16
 };
 
-// Track 4: Mud & Air - mud slows the run-up to two important kickers.
+// Track 4: Mud & Terraces - mud bogs, a 30px table and the first cliff drop.
 const uint8_t track4_heights[] PROGMEM = {
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat start: x=0-56
-    61, 61, 61, 61, 61, 61, 61, 61, // x=64-120
-    61, 61, 61, 61, 61, 61, 61, 61, // Opening mud: x=128-184
-    61, 61, 61, 61, 61, 61, 61, 61, // Ramp approach: x=192-248
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + standard loop: x=256-312
-    31, 36, 41, 46, 51, 56, 61,     // x=320-368
-    61, 61, 61, 61, 61, 61, 61, 61, // Landing: x=376-432
-    53, 45, 37, 29, 37, 45, 53, 61, // Double whoops A: x=440-496
-    53, 45, 37, 29, 37, 45, 53, 61, // Double whoops B: x=504-560
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch approach: x=568-624
-    60, 58, 55, 50, 43, 33, 23,     // Arch: x=632-680
-    21, 21, 21, 21, 21, 21, 21, 21, // x=688-744
-    29, 37, 45, 53, 61,             // x=752-784
-    61, 61, 61, 61, 61, 61, 61, 61, // Arch run-out: x=792-848
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + tilted loop: x=856-912
-    31, 36, 41, 46, 51, 56, 61,     // x=920-968
-    61, 61, 61, 61, 61, 61, 61, 61, // Landing: x=976-1032
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop: x=1040-1096
-    31, 36, 41, 46, 51, 56, 61,     // x=1104-1152
-    61, 61, 61, 61, 61, 61, 61, 61, // Mud before kicker: x=1160-1216
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + standard loop: x=1224-1280
-    31, 36, 41, 46, 51, 56, 61,     // x=1288-1336
-    61, 61, 61, 61, 61, 61, 61, 61, // Flat finish: x=1344-1400
-    61, 61, 61, 61, 61, 61, 61, 61  // x=1408-1464
+    // 16 samples - 128px flat (x=0-128)
+    FLAT16,
+    // 8 samples - 64px mud bog (x=128-192)
+    FLAT8,
+    // 8 samples - 64px flat (x=192-256)
+    FLAT8,
+    // 11 samples - 20px jump (x=256-344)
+    JUMP_MID,
+    // 12 samples - 96px flat (x=344-440)
+    FLAT12,
+    // 8 samples - 64px gentle rollers (x=440-504)
+    ROLLERS8,
+    // 12 samples - 96px flat (x=504-600)
+    FLAT12,
+    // 15 samples - 30px kicker (x=600-720)
+    JUMP_BIG,
+    // 16 samples - 128px flat (x=720-848)
+    FLAT16,
+    // 8 samples - 64px deep whoops (x=848-912)
+    WHOOPS8,
+    // 8 samples - 64px flat (x=912-976)
+    FLAT8,
+    // 20 samples - 30px tabletop (72px top) (x=976-1136)
+    TABLE_LONG,
+    // 12 samples - 96px flat (x=1136-1232)
+    FLAT12,
+    // 24 samples - terrace (30px cliff drop) (x=1232-1424)
+    TERRACE31,
+    // 12 samples - 96px flat (x=1424-1520)
+    FLAT12,
+    // 20 samples - 40px arch (x=1520-1680)
+    ARCH_L, ARCH_TOP, ARCH_R,
+    // 12 samples - 96px flat (x=1680-1776)
+    FLAT12,
+    // 8 samples - 64px mud bog (x=1776-1840)
+    FLAT8,
+    // 8 samples - 64px flat (x=1840-1904)
+    FLAT8,
+    // 11 samples - 20px jump (x=1904-1992)
+    JUMP_MID,
+    // 16 samples - 128px flat (x=1992-2120)
+    FLAT16,
+    // 15 samples - 30px kicker (x=2120-2240)
+    JUMP_BIG,
+    // 16 samples - 128px flat (x=2240-2368)
+    FLAT16,
+    // 9 samples - 15px jump (x=2368-2440)
+    JUMP_SMALL,
+    // 16 samples - 128px flat (x=2440-2568)
+    FLAT16
 };
 
 // Track 5: Double Trouble - consecutive kickers, four loops, and two arches.
@@ -356,8 +458,7 @@ const uint8_t track5_heights[] PROGMEM = {
     21, 21, 21, 21, 21, 21, 21, 21, // x=680-736
     29, 37, 45, 53, 61,             // x=744-776
     61, 61, 61, 61, 61, 61, 61, 61, // Arch run-out: x=784-840
-    56, 51, 46, 41, 36, 31, 31, 31, // Tabletop: x=848-904
-    31, 36, 41, 46, 51, 56, 61,     // x=912-960
+    FLAT3, JUMP_SMALL, FLAT3,       // Half-height jump (15px), was the 30px tabletop
     61, 61, 61, 61, 61, 61, 61, 61, // Whoops approach: x=968-1024
     53, 45, 37, 29, 37, 45, 53, 61, // Double whoops A: x=1032-1088
     53, 45, 37, 29, 37, 45, 53, 61, // Double whoops B: x=1096-1152
@@ -408,7 +509,8 @@ const uint8_t track6_heights[] PROGMEM = {
     56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + tilted loop: x=1704-1760
     31, 36, 41, 46, 51, 56, 61,     // x=1768-1816
     61, 61, 61, 61, 61, 61, 61, 61, // Flat finish: x=1824-1880
-    61, 61, 61, 61, 61, 61, 61, 61  // x=1888-1944
+    JUMP_SMALL,                     // Half-height jump (15px): x=1888-1952
+    61, 61, 61, 61, 61, 61, 61, 61  // x=1960-2016
 };
 
 // Track 7: Maniac Gauntlet - the full obstacle set in the longest course.
@@ -459,7 +561,8 @@ const uint8_t track7_heights[] PROGMEM = {
     56, 51, 46, 41, 36, 31, 31, 31, // Tabletop + standard loop: x=2608-2664
     31, 36, 41, 46, 51, 56, 61,     // x=2672-2720
     61, 61, 61, 61, 61, 61, 61, 61, // Flat finish: x=2728-2784
-    61, 61, 61, 61, 61, 61, 61, 61  // x=2792-2848
+    JUMP_SMALL,                     // Half-height jump (15px): x=2792-2856
+    61, 61, 61, 61, 61, 61, 61, 61  // x=2864-2920
 };
 
 
@@ -475,18 +578,18 @@ const Loop track1_loops[] PROGMEM = {
 
 // Tracks 2-7 reuse Track 1's tested kicker-to-loop offsets.
 const Loop track2_loops[] PROGMEM = {
-    { 322, -16, 28, LoopType::Standard },
+    { 698, -16, 28, LoopType::Standard },   // 30px kicker, crest at x=672
+    { 1498, -16, 28, LoopType::Tilted },    // 30px kicker, crest at x=1472
 };
 
 const Loop track3_loops[] PROGMEM = {
-    { 322, -16, 28, LoopType::Tilted },
-    { 1234, -16, 28, LoopType::Standard },
+    { 730, -16, 28, LoopType::Standard },   // 30px tabletop, crest at x=704
+    { 1538, -16, 28, LoopType::Tilted },    // 30px kicker, crest at x=1512
 };
 
 const Loop track4_loops[] PROGMEM = {
-    { 322, -16, 28, LoopType::Standard },
-    { 922, -16, 28, LoopType::Tilted },
-    { 1290, -16, 28, LoopType::Standard },
+    { 666, -16, 28, LoopType::Standard },   // 30px kicker after the opening bog, crest at x=640
+    { 2186, -16, 28, LoopType::Tilted },    // 30px kicker, crest at x=2160
 };
 
 const Loop track5_loops[] PROGMEM = {
@@ -534,9 +637,9 @@ constexpr int16_t ARCH_WIDTH = 160;
 const uint16_t track1_arches[] PROGMEM = { 1440 };
 
 // Each X is the flat sample immediately before the arch's curved face.
-const uint16_t track2_arches[] PROGMEM = { 808 };
-const uint16_t track3_arches[] PROGMEM = { 808 };
-const uint16_t track4_arches[] PROGMEM = { 624 };
+const uint16_t track2_arches[] PROGMEM = { 872, 1672 };
+const uint16_t track3_arches[] PROGMEM = { 944, 1712 };
+const uint16_t track4_arches[] PROGMEM = { 1512 };
 const uint16_t track5_arches[] PROGMEM = { 616, 1216 };
 const uint16_t track6_arches[] PROGMEM = { 688, 1408 };
 const uint16_t track7_arches[] PROGMEM = { 496, 1592, 2376 };
@@ -550,16 +653,16 @@ const MudPatch track1_mud[] PROGMEM = {
 };
 
 const MudPatch track2_mud[] PROGMEM = {
-    { 1040, 1096 },
+    { 0, 0 }, // no mud on this course
 };
 
 const MudPatch track3_mud[] PROGMEM = {
-    { 1288, 1344 },
+    { 0, 0 }, // no mud on this course
 };
 
 const MudPatch track4_mud[] PROGMEM = {
-    { 128, 184 },
-    { 1160, 1216 },
+    { 128, 192 },   // opening bog: slows the run-up to the first kicker
+    { 1776, 1840 }, // bog before the last kicker
 };
 
 const MudPatch track5_mud[] PROGMEM = {
@@ -672,10 +775,19 @@ void startRace(uint8_t trackIndex) {
     playerBike = Bike();
     playerBike.y = getGroundHeight(playerBike.x);
 
-    // Re-arm all nitro pickups for the chosen track.
+    // Re-arm the nitro pickups and spread them along the lap (25% / 50% / 75%)
+    // instead of stacking all three at the start. Each one is nudged forward to the
+    // next flat sample so it always sits on level ground - this keeps the longer
+    // courses supplied with nitro all the way round.
+    float trackMaxX = getTrackMaxX();
     for (uint8_t i = 0; i < MAX_ITEMS; i++) {
+        float pickupX = trackMaxX * (i + 1) / (MAX_ITEMS + 1);
+        while (pickupX < trackMaxX - 32.0f && getGroundSlope(pickupX) != 0.0f) {
+            pickupX += TERRAIN_STEP_X;
+        }
+        nitroItems[i].x = pickupX;
+        nitroItems[i].y = getGroundHeight(pickupX) - 14.0f;
         nitroItems[i].active = true;
-        nitroItems[i].y = getGroundHeight(nitroItems[i].x) - 14.0f;
     }
 
     // Clear any follower bikes / trail left over from a previous race.
